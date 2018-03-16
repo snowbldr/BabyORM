@@ -173,8 +173,8 @@ public class BabyRepo<T> {
         return execute(String.format(byKeySql, field), value);
     }
 
-    public T getManyBy(String field, Object value) {
-        return execute(String.format(byKeySql, field), value);
+    public List<T> getManyBy(String field, Object value) {
+        return executeForMany(String.format(byKeySql, field), value);
     }
 
     protected T execute(String sql, Object... args) {
