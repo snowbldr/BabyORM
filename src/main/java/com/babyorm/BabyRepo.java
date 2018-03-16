@@ -190,10 +190,10 @@ public class BabyRepo<T> {
                     if (SETTERS.containsKey(args[i].getClass().getCanonicalName())) {
                         SETTERS.get(args[i].getClass().getCanonicalName()).invoke(ps, i + 1, args[i]);
                     } else {
-                        throw new RuntimeException("No Setter found for class: " + args[i].getClass().getCanonicalName());
+                        throw new BabyDBException("No Setter found for class: " + args[i].getClass().getCanonicalName());
                     }
                 } catch (ReflectiveOperationException e) {
-                    throw new RuntimeException("Unsupported parameter type: " + args[i].getClass().getCanonicalName());
+                    throw new BabyDBException("Unsupported parameter type: " + args[i].getClass().getCanonicalName());
                 }
             }
             if (update) {
@@ -215,7 +215,7 @@ public class BabyRepo<T> {
         try {
             return preparedStatement.getResultSet();
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to get the resultset", e);
+            throw new BabyDBException("Failed to get the resultset", e);
         }
     }
 
@@ -239,7 +239,7 @@ public class BabyRepo<T> {
             }
             return isMany ? many : model;
         } catch (ReflectiveOperationException | SQLException e) {
-            throw new RuntimeException("Something's messed up yo", e);
+            throw new BabyDBException("Something's messed up yo", e);
         }
     }
 
@@ -247,14 +247,14 @@ public class BabyRepo<T> {
         String name = field.getName();
         Class<?> type = field.getType();
         if (!GETTERS.containsKey(type.getCanonicalName())) {
-            throw new RuntimeException("Unsupported model property type:" + type.getCanonicalName());
+            throw new BabyDBException("Unsupported model property type:" + type.getCanonicalName());
         }
         return Optional.ofNullable(GETTERS.get(type.getCanonicalName()))
                        .map(m -> {
                            try {
                                return m.invoke(resultSet, name);
                            } catch (ReflectiveOperationException e) {
-                               throw new RuntimeException("Invocation failed for: " + type.getCanonicalName(), e);
+                               throw new BabyDBException("Invocation failed for: " + type.getCanonicalName(), e);
                            }
                        }).orElse(null);
     }
@@ -269,7 +269,7 @@ public class BabyRepo<T> {
                 return saved != null ? update(val) : insert(val, true);
             }
         } catch (ReflectiveOperationException e) {
-            throw new RuntimeException("Failed to get key value for type " + this.clazz.getCanonicalName(), e);
+            throw new BabyDBException("Failed to get key value for type " + this.clazz.getCanonicalName(), e);
         }
     }
 
@@ -279,16 +279,16 @@ public class BabyRepo<T> {
         try {
             values.add(keyField.get(val));
         } catch (IllegalAccessException e) {
-            throw new RuntimeException("Failed to get key value for class " + keyField.getDeclaringClass().getCanonicalName());
+            throw new BabyDBException("Failed to get key value for class " + keyField.getDeclaringClass().getCanonicalName());
         }
         st = runSql(updateSql, true, values.toArray());
 
         try {
             if (st.getUpdateCount() != 1) {
-                throw new RuntimeException("Update failed");
+                throw new BabyDBException("Update failed");
             }
         } catch (SQLException e) {
-            throw new RuntimeException("omg", e);
+            throw new BabyDBException("omg", e);
         }
         return val;
     }
@@ -298,7 +298,7 @@ public class BabyRepo<T> {
             try {
                 return f.get(val);
             } catch (IllegalAccessException e) {
-                throw new RuntimeException("Failed to get property of field " + f.getDeclaringClass().getCanonicalName() + "#" + f.getName());
+                throw new BabyDBException("Failed to get property of field " + f.getDeclaringClass().getCanonicalName() + "#" + f.getName());
             }
         }).collect(Collectors.toList());
     }
@@ -314,10 +314,10 @@ public class BabyRepo<T> {
                 if (keys.next()) {
                     return get(getValue(keyField, keys));
                 } else {
-                    throw new RuntimeException("No key was returned from the db on insert for " + this.clazz.getCanonicalName());
+                    throw new BabyDBException("No key was returned from the db on insert for " + this.clazz.getCanonicalName());
                 }
             } catch (SQLException e) {
-                throw new RuntimeException(":|", e);
+                throw new BabyDBException(":|", e);
             }
         }
     }
