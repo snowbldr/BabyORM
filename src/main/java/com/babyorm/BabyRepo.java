@@ -5,6 +5,7 @@ import com.sun.beans.finder.PrimitiveWrapperMap;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.sql.*;
 import java.util.*;
 import java.util.function.Function;
@@ -108,9 +109,20 @@ public class BabyRepo<T> {
         return newMap;
     }
 
+    public BabyRepo(Class<T> clazz){
+         init(clazz);
+    }
+
     public BabyRepo() {
-        Class<? extends BabyRepo> repoClass = this.getClass();
-        this.clazz = (Class<T>) ((ParameterizedType) repoClass.getGenericSuperclass()).getActualTypeArguments()[0];
+        Type genericSuperclass = this.getClass().getGenericSuperclass();
+        if(genericSuperclass == null || !(genericSuperclass instanceof ParameterizedType)){
+            throw new BabyDBException("You must extend BabyRepo to use the no-arg constructor. Use either: BabyRepo<Type>(){}; or BabyRepo<Type>(Type.class);");
+        }
+        init((Class<T>) ((ParameterizedType) genericSuperclass).getActualTypeArguments()[0]);
+    }
+
+    private void init(Class<T> clazz){
+        this.clazz = clazz;
         this.fields = Arrays.asList(this.clazz.getDeclaredFields());
         this.fields.forEach(f -> f.setAccessible(true));
         String tableName = camelCase(clazz.getSimpleName());
