@@ -1,0 +1,6 @@
+*.class
+.idea
+*.iml
+.gradle
+
+hs_err_pid*
