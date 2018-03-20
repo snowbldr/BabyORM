@@ -1,172 +1,169 @@
 package com.babyorm;
 
-import com.sun.beans.finder.PrimitiveWrapperMap;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.sql.*;
 import java.util.*;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
+import static com.babyorm.ReflectiveUtils.*;
+
+/**
+ * A repo, baby
+ * <p>
+ * To use this, try one of: new BabyRepo<Foo>(){}; or new BabyRepo<Foo>(Foo.class); or BabyRepo.forType(Foo.class);
+ *
+ * @param <T> The type of entity this repo likes the most
+ */
 public class BabyRepo<T> {
 
-    private Class<T> clazz;
+    /**
+     * the column getter methods on the ResultSet class
+     */
+    private static final Map<Class<?>, Method> GETTERS =
+            addKeySuperTypes(
+                    addPrimitivesToMap(
+                            findMethods(
+                                    ResultSet.class.getMethods(),
+                                    Method::getReturnType,
+                                    m -> m.getName().startsWith("get"),
+                                    m -> !m.getName().startsWith("getN"),
+                                    m -> m.getParameterCount() == 1,
+                                    m -> m.getParameterTypes()[0].equals(String.class))));
+
+    /**
+     * the parameter setter methods on the PreparedStatement class
+     */
+    private static final Map<Class<?>, Method> SETTERS =
+            addKeySuperTypes(
+                    addPrimitivesToMap(
+                            findMethods(
+                                    PreparedStatement.class.getMethods(),
+                                    m -> m.getParameterTypes()[1],
+                                    m -> m.getName().startsWith("set"),
+                                    m -> !m.getName().startsWith("setN"),
+                                    m -> m.getParameterCount() == 2,
+                                    m -> m.getParameterTypes()[0].equals(Integer.TYPE))));
+
+    private Class<T> entityType;
     private List<Field> fields, nonKeyFields;
-    private String byKeySql, baseSql, updateSql, insertSqlNoKey, insertSql;
-    private static Supplier<Connection> connectionSupplier;
-
-    public static void setConnectionSupplier(Supplier<Connection> connectionSupplier) {
-        BabyRepo.connectionSupplier = connectionSupplier;
-    }
-
-    private static final Map<String, Method> GETTERS =
-        addSuperTypes(
-            findMethods(
-                ResultSet.class.getMethods(),
-                Method::getReturnType,
-                m -> m.getName().startsWith("get"),
-                m -> !m.getName().startsWith("getN"),
-                m -> m.getParameterCount() == 1,
-                m -> m.getParameterTypes()[0].equals(String.class)));
-    private static final Map<String, Method> SETTERS =
-        addSuperTypes(
-            findMethods(
-                PreparedStatement.class.getMethods(),
-                m -> m.getParameterTypes()[1],
-                m -> m.getName().startsWith("set"),
-                m -> !m.getName().startsWith("setN"),
-                m -> m.getParameterCount() == 2,
-                m -> m.getParameterTypes()[0].equals(Integer.TYPE)));
+    private String byKeySql, baseSql, updateSql, insertSqlNoKey, insertSql, deleteSql;
+    private static Supplier<Connection> globalConnectionSupplier;
+    private Supplier<Connection> localConnectionSupplier;
     private Field keyField;
 
-    @SafeVarargs
-    private static Map<String, Method> findMethods(Method[] methods, Function<Method, Class<?>> mapKey, Predicate<Method>... predicates) {
-        Map<String, Method> map = Arrays.stream(methods)
-                                        .filter(m -> {
-                                            boolean r = true;
-                                            for (Predicate<Method> p : predicates) {
-                                                r = r && p.test(m);
-                                            }
-                                            return r;
-                                        })
-                                        .collect(Collectors.groupingBy(m -> mapKey.apply(m).getCanonicalName(), Collectors.toList()))
-                                        .entrySet().stream()
-                                        .filter(e -> e.getValue().size() == 1)
-                                        .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0)));
-        //make sure all the primitive and wrapper types are added
-        map = map.entrySet().stream()
-                 .flatMap(e -> {
-                     Class<?> c = PrimitiveWrapperMap.getType(e.getKey());
-                     if (c == null) {
-                         try {
-                             c = Class.forName(e.getKey());
-                             Field type = c.getField("TYPE");
-                             c = PrimitiveWrapperMap.getType(((Class<?>) type.get(c)).getCanonicalName());
-                         } catch (ReflectiveOperationException ignored) {
-                         }
-                     }
-                     if (c != null) {
-                         return Stream.of(e, new HashMap.SimpleEntry<>(c.getCanonicalName(), e.getValue()));
-                     } else {
-                         return Stream.of(e);
-                     }
-                 })
-                 .distinct()
-                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
-        ;
-        return map;
+    /**
+     * Pretty straight forward, can't really screw this one up.
+     */
+    public BabyRepo(Class<T> entityType) {
+        init(entityType);
     }
 
-
-    private static Map<String, Method> addSuperTypes(Map<String, Method> map) {
-        Map<String, Method> newMap = new HashMap<>();
-        map.forEach((c, v) -> {
-            Class<?> d = null;
-            try {
-                try {
-                    d = Class.forName(c);
-                } catch (ClassNotFoundException e) {
-                    Class<?> wrapper = PrimitiveWrapperMap.getType(c);
-                    if (wrapper == null) {
-                        return;
-                    }
-                    d = ((Class<?>) wrapper.getField("TYPE").get(wrapper));
-                }
-            } catch (ReflectiveOperationException ignored) {
-            }
-
-            while (d != null && !Object.class.equals(d)) {
-                newMap.put(d.getCanonicalName(), map.get(c));
-                d = d.getSuperclass();
-            }
-        });
-        return newMap;
-    }
-
-    public BabyRepo(Class<T> clazz){
-         init(clazz);
-    }
-
+    /**
+     * You MUST extend this class and specify your entity type on the class that directly extends
+     * this class. try: new BabyRepo<Foo>(){};
+     */
     public BabyRepo() {
         Type genericSuperclass = this.getClass().getGenericSuperclass();
-        if(genericSuperclass == null || !(genericSuperclass instanceof ParameterizedType)){
+        if (genericSuperclass == null || !(genericSuperclass instanceof ParameterizedType)) {
             throw new BabyDBException("You must extend BabyRepo to use the no-arg constructor. Use either: BabyRepo<Type>(){}; or BabyRepo<Type>(Type.class);");
         }
         init((Class<T>) ((ParameterizedType) genericSuperclass).getActualTypeArguments()[0]);
     }
 
-    private void init(Class<T> clazz){
-        this.clazz = clazz;
-        this.fields = Arrays.asList(this.clazz.getDeclaredFields());
-        this.fields.forEach(f -> f.setAccessible(true));
-        String tableName = camelCase(clazz.getSimpleName());
-        findKeyField(tableName);
-        builCachedSqlStatements(tableName);
+    /**
+     * Set a local connection supplier to use instead of the global connection supplier
+     */
+    public BabyRepo(Supplier<Connection> connectionSupplier) {
+        this();
+        this.localConnectionSupplier = connectionSupplier;
     }
 
-    private void findKeyField(String tableName) {
-        List<Field> idFIelds = Arrays.stream(this.clazz.getDeclaredFields())
-                                     .filter(f -> f.getAnnotation(Id.class) != null)
-                                     .collect(Collectors.toList());
-        if (idFIelds == null || idFIelds.size() < 1) {
-            try {
-                this.keyField = clazz.getDeclaredField(tableName + "Id");
-            } catch (NoSuchFieldException e) {
-                throw new BabyDBException("Unable to determine the Id field of " + this.clazz.getCanonicalName());
-            }
-        } else if (idFIelds.size() > 1) {
-            throw new BabyDBException("Multiple Id fields found on " + this.clazz.getCanonicalName());
-        } else {
-            this.keyField = idFIelds.get(0);
-        }
+    /**
+     * Set a local connection supplier to use instead of the global connection supplier
+     */
+    public BabyRepo(Class<T> entityType, Supplier<Connection> connectionSupplier) {
+        this(entityType);
+        this.localConnectionSupplier = connectionSupplier;
+    }
+
+    /**
+     * Factory method to get a new repository
+     */
+    public static <E> BabyRepo<E> forType(Class<E> type) {
+        return new BabyRepo<>(type);
+    }
+
+    /**
+     * Set the global connection supplier to use across all repositories
+     */
+    public static void setGlobalConnectionSupplier(Supplier<Connection> globalConnectionSupplier) {
+        BabyRepo.globalConnectionSupplier = globalConnectionSupplier;
+    }
+
+    public void setLocalConnectionSupplier(Supplier<Connection> localConnectionSupplier) {
+        this.localConnectionSupplier = localConnectionSupplier;
+    }
+
+    private void init(Class<T> entityType) {
+        this.entityType = entityType;
+        this.fields = Arrays.asList(this.entityType.getDeclaredFields());
+        this.fields.forEach(f -> f.setAccessible(true));
+        this.keyField = findKeyField();
         this.keyField.setAccessible(true);
         this.nonKeyFields = fields.stream()
-                                  .filter(f -> !keyField.getName().equals(f.getName()))
-                                  .collect(Collectors.toList());
+                .filter(f -> !keyField.equals(f))
+                .collect(Collectors.toList());
+        buildCachedSqlStatements();
     }
 
-    private void builCachedSqlStatements(String tableName) {
+    private Field findKeyField() {
+        List<Field> idFIelds = findFields(this.entityType, f -> f.getAnnotation(PK.class) != null);
+        if (idFIelds == null || idFIelds.size() < 1) {
+            throw new BabyDBException("No field labeled as PK for " + this.entityType.getCanonicalName());
+        } else if (idFIelds.size() > 1) {
+            throw new BabyDBException("Multiple PK fields found on " + this.entityType.getCanonicalName());
+        } else {
+            return idFIelds.get(0);
+        }
+    }
+
+    private void buildCachedSqlStatements() {
+        String tableName = determineTableName();
+
         this.baseSql = "select * from " + tableName;
         this.byKeySql = baseSql + " where %s=?";
+        this.deleteSql = "delete from " + tableName + " where %s=?";
         this.updateSql = "update " + tableName
-                         + " set " + nonKeyFields.stream().map(f -> f.getName() + "=?").collect(Collectors.joining(","))
-                         + " where " + keyField.getName() + "=?";
+                + " set " + nonKeyFields.stream().map(f -> colName(f) + "=?").collect(Collectors.joining(","))
+                + " where " + colName(keyField) + "=?";
         this.insertSqlNoKey = "insert into " + tableName
-                              + "(" + nonKeyFields.stream()
-                                                  .map(Field::getName)
-                                                  .collect(Collectors.joining(",")) + ")"
-                              + " values (" + nonKeyFields.stream().map(f -> "?").collect(Collectors.joining(",")) + ")";
+                + "(" + nonKeyFields.stream()
+                .map(this::colName)
+                .collect(Collectors.joining(",")) + ")"
+                + " values (" + nonKeyFields.stream().map(f -> "?").collect(Collectors.joining(",")) + ")";
         this.insertSql = "insert into " + tableName
-                         + "(" + fields.stream()
-                                       .map(Field::getName)
-                                       .collect(Collectors.joining(",")) + ")"
-                         + " values (" + fields.stream().map(f -> "?").collect(Collectors.joining(",")) + ")";
+                + "(" + fields.stream()
+                .map(this::colName)
+                .collect(Collectors.joining(",")) + ")"
+                + " values (" + fields.stream().map(f -> "?").collect(Collectors.joining(",")) + ")";
+    }
+
+    private String colName(Field f) {
+        return Optional.ofNullable(f.getAnnotation(ColumnName.class)).map(ColumnName::value).orElseGet(f::getName);
+    }
+
+    private String determineTableName() {
+        String tableName = Optional.ofNullable(this.entityType.getAnnotation(SchemaName.class))
+                .map(s -> s.value() + ".")
+                .orElse("");
+        tableName += Optional.ofNullable(this.entityType.getAnnotation(TableName.class))
+                .map(TableName::value)
+                .orElseGet(() -> camelCase(entityType.getSimpleName()));
+        return tableName;
     }
 
     private String camelCase(String s) {
@@ -174,66 +171,63 @@ public class BabyRepo<T> {
     }
 
     public T get(Object id) {
-        return getOneBy(keyField.getName(), id);
+        return getOneBy(colName(keyField), id);
     }
 
     public List<T> getAll() {
-        return executeForMany(baseSql);
+        try (Connection conn = getConnection()) {
+            PreparedStatement st = prepare(conn, baseSql);
+            st.execute();
+            return (List<T>) mapResultSet(st, true);
+        } catch (SQLException e) {
+            throw new BabyDBException("Failed to execute sql: " + baseSql, e);
+        }
     }
 
     public T getOneBy(String field, Object value) {
-        return execute(String.format(byKeySql, field), value);
-    }
-
-    public List<T> getManyBy(String field, Object value) {
-        return executeForMany(String.format(byKeySql, field), value);
-    }
-
-    protected T execute(String sql, Object... args) {
-        return (T) mapResultSet(toResultSet(runSql(sql, false, args)), false);
-    }
-
-    private PreparedStatement runSql(String sql, boolean update, Object... args) {
-        try {
-            Connection conn = connectionSupplier.get();
-            PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-            for (int i = 0; i < args.length; i++) {
-                try {
-                    if (SETTERS.containsKey(args[i].getClass().getCanonicalName())) {
-                        SETTERS.get(args[i].getClass().getCanonicalName()).invoke(ps, i + 1, args[i]);
-                    } else {
-                        throw new BabyDBException("No Setter found for class: " + args[i].getClass().getCanonicalName());
-                    }
-                } catch (ReflectiveOperationException e) {
-                    throw new BabyDBException("Unsupported parameter type: " + args[i].getClass().getCanonicalName());
-                }
-            }
-            if (update) {
-                ps.executeUpdate();
-            } else {
-                ps.execute();
-            }
-            return ps;
+        PreparedStatement st;
+        String sql = String.format(byKeySql, field);
+        try (Connection conn = getConnection()) {
+            st = prepare(conn, sql, value);
+            st.execute();
+            return (T) mapResultSet(st, false);
         } catch (SQLException e) {
             throw new BabyDBException("Failed to execute sql: " + sql, e);
         }
     }
 
-    protected List<T> executeForMany(String sql, Object... args) {
-        return (List<T>) mapResultSet(toResultSet(runSql(sql, false, args)), true);
-    }
-
-    private ResultSet toResultSet(PreparedStatement preparedStatement) {
-        try {
-            return preparedStatement.getResultSet();
+    public List<T> getManyBy(String field, Object value) {
+        PreparedStatement st;
+        String sql = String.format(byKeySql, field);
+        try (Connection conn = getConnection()) {
+            st = prepare(conn, sql, value);
+            st.execute();
+            return (List<T>) mapResultSet(st, true);
         } catch (SQLException e) {
-            throw new BabyDBException("Failed to get the resultset", e);
+            throw new BabyDBException("Failed to execute sql: " + sql, e);
         }
     }
 
-    private Object mapResultSet(ResultSet rs, boolean isMany) {
-        List<T> many = isMany ? new ArrayList<>() : null;
+    private PreparedStatement prepare(Connection conn, String sql, Object... args) throws SQLException {
+        PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+        for (int i = 0; i < args.length; i++) {
+            if (SETTERS.containsKey(args[i].getClass())) {
+                invokeSafe(SETTERS.get(args[i].getClass()), ps, i + 1, args[i]);
+            } else {
+                throw new BabyDBException("Unsupported property type: " + args[i].getClass().getCanonicalName());
+            }
+        }
+        return ps;
+    }
+
+    private Connection getConnection() {
+        return Optional.ofNullable(localConnectionSupplier).map(Supplier::get).orElseGet(globalConnectionSupplier);
+    }
+
+    private Object mapResultSet(PreparedStatement st, boolean isMany) {
         try {
+            ResultSet rs = st.getResultSet();
+            List<T> many = isMany ? new ArrayList<>() : null;
             boolean hasOne = false;
             T model = null;
             while (rs.next()) {
@@ -241,9 +235,9 @@ public class BabyRepo<T> {
                     throw new BabyDBException("Multiple rows found for single row query");
                 }
                 hasOne = true;
-                model = clazz.getConstructor().newInstance();
+                model = entityType.getConstructor().newInstance();
                 for (Field f : fields) {
-                    f.set(model, getValue(f, rs));
+                    f.set(model, getResultValue(f, rs));
                 }
                 if (isMany) {
                     many.add(model);
@@ -251,86 +245,82 @@ public class BabyRepo<T> {
             }
             return isMany ? many : model;
         } catch (ReflectiveOperationException | SQLException e) {
-            throw new BabyDBException("Something's messed up yo", e);
+            throw new BabyDBException("Failed to map resultSet to object", e);
         }
     }
 
-    private Object getValue(Field field, ResultSet resultSet) {
-        String name = field.getName();
+    private Object getResultValue(Field field, ResultSet resultSet) {
         Class<?> type = field.getType();
-        if (!GETTERS.containsKey(type.getCanonicalName())) {
+        if (!GETTERS.containsKey(type)) {
             throw new BabyDBException("Unsupported model property type:" + type.getCanonicalName());
         }
-        return Optional.ofNullable(GETTERS.get(type.getCanonicalName()))
-                       .map(m -> {
-                           try {
-                               return m.invoke(resultSet, name);
-                           } catch (ReflectiveOperationException e) {
-                               throw new BabyDBException("Invocation failed for: " + type.getCanonicalName(), e);
-                           }
-                       }).orElse(null);
+        return ReflectiveUtils.invokeSafe(GETTERS.get(type), resultSet, colName(field));
     }
 
     public T save(T val) {
-        try {
-            Object o = keyField.get(Objects.requireNonNull(val, "can't save a null record"));
-            if (o == null) {
-                return insert(val, false);
-            } else {
-                T saved = get(o);
-                return saved != null ? update(val) : insert(val, true);
-            }
-        } catch (ReflectiveOperationException e) {
-            throw new BabyDBException("Failed to get key value for type " + this.clazz.getCanonicalName(), e);
-        }
-    }
-
-    private T update(T val) {
-        PreparedStatement st;
-        List<Object> values = getFieldValues(val, nonKeyFields);
-        try {
-            values.add(keyField.get(val));
-        } catch (IllegalAccessException e) {
-            throw new BabyDBException("Failed to get key value for class " + keyField.getDeclaringClass().getCanonicalName());
-        }
-        st = runSql(updateSql, true, values.toArray());
-
-        try {
-            if (st.getUpdateCount() != 1) {
-                throw new BabyDBException("Update failed");
-            }
-        } catch (SQLException e) {
-            throw new BabyDBException("omg", e);
-        }
-        return val;
-    }
-
-    private List<Object> getFieldValues(T val, List<Field> fields) {
-        return fields.stream().map(f -> {
-            try {
-                return f.get(val);
-            } catch (IllegalAccessException e) {
-                throw new BabyDBException("Failed to get property of field " + f.getDeclaringClass().getCanonicalName() + "#" + f.getName());
-            }
-        }).collect(Collectors.toList());
-    }
-
-    private T insert(T val, boolean hasKey) {
-        PreparedStatement st = runSql(hasKey ? insertSql : insertSqlNoKey, true, getFieldValues(val, hasKey ? fields : nonKeyFields).toArray());
-        if (hasKey) {
-            return get(getFieldValues(val, Collections.singletonList(keyField)).get(0));
+        Object o = getSafe(keyField, Objects.requireNonNull(val, "Can't save a null record"));
+        if (o == null) {
+            return insert(val, false);
         } else {
-            try {
+            T saved = get(o);
+            return saved != null ? update(val) : insert(val, true);
+        }
+    }
+
+    public T update(T val) {
+        try (Connection conn = getConnection()) {
+            List<Object> values = getFieldValues(val, nonKeyFields);
+            //always add the key last to match the sql
+            values.add(getSafe(keyField, val));
+            PreparedStatement st = prepare(conn, updateSql, values.toArray());
+            st.executeUpdate();
+            return st.getUpdateCount() == 0 ? null : val;
+        } catch (SQLException e) {
+            throw new BabyDBException("Update failed", e);
+        }
+
+    }
+
+    public T insert(T val, boolean hasKey) {
+        try (Connection conn = getConnection()) {
+            PreparedStatement st = prepare(
+                    conn,
+                    hasKey ? insertSql : insertSqlNoKey,
+                    getFieldValues(val, hasKey ? fields : nonKeyFields).toArray());
+            st.executeUpdate();
+            if (hasKey) {
+                return get(getFieldValues(val, Collections.singletonList(keyField)).get(0));
+            } else {
+
                 ResultSet keys;
                 keys = st.getGeneratedKeys();
                 if (keys.next()) {
-                    return get(getValue(keyField, keys));
+                    return get(getResultValue(keyField, keys));
                 } else {
-                    throw new BabyDBException("No key was returned from the db on insert for " + this.clazz.getCanonicalName());
+                    throw new BabyDBException("No key was returned from the db on insert for " + this.entityType.getCanonicalName());
                 }
-            } catch (SQLException e) {
-                throw new BabyDBException(":|", e);
             }
+        } catch (SQLException e) {
+            throw new BabyDBException("Insert failed", e);
         }
     }
+
+    public boolean deleteByPK(Object key) {
+        return deleteBy(colName(keyField), key);
+    }
+
+    public boolean delete(T entity){
+        return deleteBy(colName(keyField), getSafe(keyField, entity));
+    }
+
+    public boolean deleteBy(String field, Object value) {
+        try(Connection conn = getConnection()){
+            PreparedStatement st = prepare(conn, String.format(this.deleteSql, field), value);
+            return st.executeUpdate() > 0;
+        } catch (SQLException e){
+            throw new BabyDBException("Delete failed", e);
+        }
+    }
+
+
 }
