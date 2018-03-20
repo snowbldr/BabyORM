@@ -69,7 +69,7 @@ public class BabyRepo<T> {
     public BabyRepo() {
         Type genericSuperclass = this.getClass().getGenericSuperclass();
         if (genericSuperclass == null || !(genericSuperclass instanceof ParameterizedType)) {
-            throw new BabyDBException("You must extend BabyRepo to use the no-arg constructor. Use either: BabyRepo<Type>(){}; or BabyRepo<Type>(Type.class);");
+            throw new BabyDBException("You must extend BabyRepo to use the no-arg constructor. See class java doc for help");
         }
         init((Class<T>) ((ParameterizedType) genericSuperclass).getActualTypeArguments()[0]);
     }
