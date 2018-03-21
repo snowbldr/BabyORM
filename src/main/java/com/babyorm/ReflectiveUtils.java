@@ -128,7 +128,20 @@ public class ReflectiveUtils {
         try {
             return f.get(target);
         } catch (IllegalAccessException e) {
-            throw new BabyDBException("Failed to get property of field " + f.getDeclaringClass().getCanonicalName() + "#" + f.getName());
+            throw new BabyDBException("Failed to get value of field " + f.getDeclaringClass().getCanonicalName() + "#" + f.getName());
+        }
+    }
+
+    /**
+     * Not really safe, just makes the exception unchecked
+     * @param f The field to set
+     * @param target The object to set the field on
+     */
+    public static void setSafe(Field f, Object target, Object value){
+        try {
+            f.set(target, value);
+        } catch (IllegalAccessException e) {
+            throw new BabyDBException("Failed to set value of field " + f.getDeclaringClass().getCanonicalName() + "#" + f.getName());
         }
     }
 
@@ -140,6 +153,19 @@ public class ReflectiveUtils {
      */
     public static List<Object> getFieldValues(Object val, List<Field> fields) {
         return fields.stream().map(f -> ReflectiveUtils.getSafe(f, val)).collect(Collectors.toList());
+    }
+
+    /**
+     * Get the field, if it has it
+     * @param clazz The class to find the field on
+     * @param fieldName The name of the field
+     */
+    public static Optional<Field> getField(Class<?> clazz, String fieldName){
+        try {
+            return Optional.ofNullable(clazz.getField(fieldName));
+        } catch (NoSuchFieldException e) {
+            return Optional.empty();
+        }
     }
 
     /**
