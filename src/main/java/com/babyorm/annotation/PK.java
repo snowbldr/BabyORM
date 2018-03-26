@@ -1,4 +1,6 @@
-package com.babyorm;
+package com.babyorm.annotation;
+
+import com.babyorm.KeyProvider;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,9 +8,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * WHICH FIELD IS THE KEY FIELD
- * if you don't have a key, make one
- * if you have a table with a multi column key, make a single key or use hibernate. This is just a baby.
+ * This annotation identifies the primary key of the entity
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)

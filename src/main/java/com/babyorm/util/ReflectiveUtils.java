@@ -1,4 +1,6 @@
-package com.babyorm;
+package com.babyorm.util;
+
+import com.babyorm.BabyDBException;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -74,11 +76,10 @@ public class ReflectiveUtils {
     @SafeVarargs
     public static <T> Predicate<T> allOf(Predicate<T>... predicates){
         return m -> {
-            boolean r = true;
             for (Predicate<T> p : predicates) {
-                r = r && p.test(m);
+                if(!p.test(m)) return false;
             }
-            return r;
+            return true;
         };
     }
 

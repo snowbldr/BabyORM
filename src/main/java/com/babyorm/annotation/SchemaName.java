@@ -1,4 +1,4 @@
-package com.babyorm;
+package com.babyorm.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,10 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Specify the the name of the table column associate with this object field
+ * Specify the schema to use for a given table
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.FIELD)
-public @interface ColumnName {
+@Target(ElementType.TYPE)
+public @interface SchemaName {
     String value();
 }

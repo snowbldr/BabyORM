@@ -1,6 +1,6 @@
 package com.babyorm;
 
 @FunctionalInterface
-public interface KeyProvider {
-    Object nextKey();
+public interface KeyProvider<T> {
+    T nextKey();
 }

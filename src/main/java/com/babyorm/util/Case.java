@@ -1,4 +1,4 @@
-package com.babyorm;
+package com.babyorm.util;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -19,6 +19,7 @@ public enum Case {
         return looksLikeThis;
     }
 
+    //TODO: Implement this shit
     public String convert(String input, Case to){
         if(input == null){
             return null;
