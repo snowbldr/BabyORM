@@ -127,9 +127,10 @@ public class ReflectiveUtils {
      */
     public static Object getSafe(Field f, Object target){
         try {
+            f.setAccessible(true);
             return f.get(target);
         } catch (IllegalAccessException e) {
-            throw new BabyDBException("Failed to get value of field " + f.getDeclaringClass().getCanonicalName() + "#" + f.getName());
+            throw new BabyDBException("Failed to get value of field " + f.getDeclaringClass().getCanonicalName() + "#" + f.getName(), e);
         }
     }
 
@@ -142,7 +143,7 @@ public class ReflectiveUtils {
         try {
             f.set(target, value);
         } catch (IllegalAccessException e) {
-            throw new BabyDBException("Failed to set value of field " + f.getDeclaringClass().getCanonicalName() + "#" + f.getName());
+            throw new BabyDBException("Failed to set value of field " + f.getDeclaringClass().getCanonicalName() + "#" + f.getName(), e);
         }
     }
 
