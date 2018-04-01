@@ -4,3 +4,5 @@
 .gradle
 
 hs_err_pid*
+derby.log
+sqliteBabyOrm

@@ -110,9 +110,13 @@ public class ReflectiveUtils {
     public static Map<Class<?>, Method> addKeySuperTypes(Map<Class<?>, Method> map) {
         Map<Class<?>, Method> newMap = new HashMap<>();
         map.forEach((c, v) -> {
+            if(Object.class.equals(c)){
+                newMap.put(c, v);
+                return;
+            }
             Class<?> d = c;
             while (d != null && !Object.class.equals(d)) {
-                newMap.put(d, map.get(c));
+                newMap.put(d, v);
                 d = d.getSuperclass();
             }
         });

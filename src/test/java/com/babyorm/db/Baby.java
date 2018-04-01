@@ -6,12 +6,19 @@ import com.babyorm.annotation.PK;
 public class Baby {
 
     @PK
-    @ColumnName("PK")
     private Long pk;
     private String name;
     @ColumnName("hair_color")
     private String hairColor;
     private int numberOfToes;
+
+    public Baby(){}
+
+    public Baby(Baby baby){
+        this.name = baby.name;
+        this.hairColor = baby.hairColor;
+        this.numberOfToes = baby.numberOfToes;
+    }
 
     public Long getPk() {
         return pk;

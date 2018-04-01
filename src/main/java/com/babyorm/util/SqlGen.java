@@ -44,7 +44,7 @@ public class SqlGen {
      *                       build an in list or not. It's a LinkedHashMap so we can guarantee order of the elements so
      *                       we can later set them appropriately by position.
      */
-    public static String whereAll(LinkedHashMap<String, Object> columnValueMap){
+    public static String whereAll(LinkedHashMap<String, ?> columnValueMap){
         return where(columnValueMap, " AND ");
     }
 
@@ -54,11 +54,11 @@ public class SqlGen {
      *                       build an in list or not. It's a LinkedHashMap so we can guarantee order of the elements so
      *                       we can later set them appropriately by position.
      */
-    public static String whereAny(LinkedHashMap<String, Object> columnValueMap){
+    public static String whereAny(LinkedHashMap<String, ?> columnValueMap){
         return where(columnValueMap, " OR ");
     }
 
-    private static String where(LinkedHashMap<String, Object> columnValueMap, String operator){
+    private static String where(LinkedHashMap<String, ?> columnValueMap, String operator){
         StringBuilder sb = new StringBuilder(" where ");
         columnValueMap.forEach((s,o)->{
             if (o instanceof Collection) {
@@ -68,7 +68,9 @@ public class SqlGen {
             } else {
                 sb.append(s).append("=?");
             }
+            sb.append(operator);
         });
+        sb.delete(sb.length()-operator.length(), sb.length()-1);
         return sb.toString();
     }
 }
