@@ -5,18 +5,15 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @ExtendWith(InitDBBeforeEach.class)
 public class BaseDBTest {
 
-    public static final List<TestDB> TEST_DBS;
-    static {
-        DerbyTestDB derbyTestDB = new DerbyTestDB();
-        SQLiteDB sqLiteDB = new SQLiteDB();
-        PostgresDB postgresDB = new PostgresDB();
-        TEST_DBS = Arrays.asList(derbyTestDB, sqLiteDB, postgresDB);
-    }
+    public static final List<TestDB> TEST_DBS = Arrays.asList(new DerbyTestDB(), new SQLiteTestDB(), new PostgresTestDB(), new MysqlTestDB());
 
     protected BabyRepo<Baby> repo;
 

@@ -7,10 +7,10 @@ import java.util.List;
 
 import static ru.yandex.qatools.embed.postgresql.distribution.Version.Main.V9_6;
 
-public class PostgresDB extends TestDB {
+public class PostgresTestDB extends TestDB {
     private static EmbeddedPostgres postgres;
 
-    public PostgresDB() {
+    public PostgresTestDB() {
         super("org.postgresql.Driver", initPostgres());
     }
 

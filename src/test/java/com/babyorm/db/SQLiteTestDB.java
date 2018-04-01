@@ -3,9 +3,9 @@ package com.babyorm.db;
 import java.util.Arrays;
 import java.util.List;
 
-public class SQLiteDB extends TestDB{
+public class SQLiteTestDB extends TestDB{
 
-    public SQLiteDB() {
+    public SQLiteTestDB() {
         super("org.sqlite.JDBC", "jdbc:sqlite:sqliteBabyOrm");
     }
 
