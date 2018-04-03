@@ -84,7 +84,7 @@ public class ReflectiveUtils {
     }
 
     /**
-     * This method will insure that all primitive keys have their associated wrapper type added to the map with the same value and vice versa.
+     * This method will insure that all primitive keys have their associated wrapper type added to the map with the same columnNameOnThisEntity and vice versa.
      * @param map The map to add to
      * @return The map with the added primitive or wrapper classes
      */
@@ -103,7 +103,7 @@ public class ReflectiveUtils {
     }
 
     /**
-     * For the given map, for each key, look up the class, and add it's super types to the map with the same value
+     * For the given map, for each key, look up the class, and add it's super types to the map with the same columnNameOnThisEntity
      * @param map The map to add super classes for
      * @return The map with all the super classes added
      */
@@ -127,14 +127,14 @@ public class ReflectiveUtils {
      * Not really safe, just makes the exception unchecked
      * @param f The field to get
      * @param target The object to get the field from
-     * @return The value of the field on the object
+     * @return The columnNameOnThisEntity of the field on the object
      */
     public static Object getSafe(Field f, Object target){
         try {
             f.setAccessible(true);
             return f.get(target);
         } catch (IllegalAccessException e) {
-            throw new BabyDBException("Failed to get value of field " + f.getDeclaringClass().getCanonicalName() + "#" + f.getName(), e);
+            throw new BabyDBException("Failed to get columnNameOnThisEntity of field " + f.getDeclaringClass().getCanonicalName() + "#" + f.getName(), e);
         }
     }
 
@@ -147,7 +147,7 @@ public class ReflectiveUtils {
         try {
             f.set(target, value);
         } catch (IllegalAccessException e) {
-            throw new BabyDBException("Failed to set value of field " + f.getDeclaringClass().getCanonicalName() + "#" + f.getName(), e);
+            throw new BabyDBException("Failed to set columnNameOnThisEntity of field " + f.getDeclaringClass().getCanonicalName() + "#" + f.getName(), e);
         }
     }
 
@@ -178,7 +178,7 @@ public class ReflectiveUtils {
      * Not really safe, just makes the exception unchecked
      * @param m The method to invoke
      * @param target The object to invoked the method on
-     * @return The returned value of the method
+     * @return The returned columnNameOnThisEntity of the method
      */
     public static Object invokeSafe(Method m, Object target, Object... args){
         try {

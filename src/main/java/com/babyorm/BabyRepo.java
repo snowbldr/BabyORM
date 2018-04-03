@@ -5,13 +5,12 @@ import com.babyorm.util.SqlGen;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.sql.Connection;
 import java.util.*;
 
 /**
  * A repo, baby
  * <p>
- * To make a new repo, use {@link #forType(Class)};
+ * To make a new repo, use {@link #forType(Class)} or {@link #BabyRepo()};
  * <p>
  * You must call {@link #setGlobalConnectionSupplier(ConnectionSupplier)} or provide a ConnectionSupplier via Constructor or setter
  * If you don't, shit's gonna throw errors telling you to do this.
@@ -21,7 +20,7 @@ import java.util.*;
  *
  * @param <T> The type of entity this repo likes the most
  */
-public class BabyRepo<T> extends CoreRepo<T> {
+public class BabyRepo<T> extends RelationshipHandlingRepo<T> {
 
     private final HashMap<Class<?>,CoreRepo<?>> children = new HashMap<>();
 
@@ -29,14 +28,7 @@ public class BabyRepo<T> extends CoreRepo<T> {
      * Pretty straight forward, can't really screw this one up.
      */
     public BabyRepo(Class<T> entityType) {
-        init(entityType, null);
-    }
-
-    /**
-     * @param keyProvider The key provider for the associated entity.
-     */
-    public BabyRepo(Class<T> entityType, KeyProvider keyProvider) {
-        init(entityType, keyProvider);
+        init(entityType);
     }
 
     /**
@@ -44,19 +36,11 @@ public class BabyRepo<T> extends CoreRepo<T> {
      * this class. try: new BabyRepo<Foo>(){};
      */
     public BabyRepo() {
-        this((KeyProvider) null);
-    }
-
-    /**
-     * You MUST extend this class and specify your entity type on the class that directly extends
-     * this class. try: new BabyRepo<Foo>(){};
-     */
-    public BabyRepo(KeyProvider keyProvider) {
         Type genericSuperclass = this.getClass().getGenericSuperclass();
         if (genericSuperclass == null || !(genericSuperclass instanceof ParameterizedType)) {
             throw new BabyDBException("You must extend BabyRepo to use the no-arg constructor.");
         }
-        init((Class<T>) ((ParameterizedType) genericSuperclass).getActualTypeArguments()[0], keyProvider);
+        init((Class<T>) ((ParameterizedType) genericSuperclass).getActualTypeArguments()[0]);
     }
 
     /**
@@ -70,24 +54,8 @@ public class BabyRepo<T> extends CoreRepo<T> {
     /**
      * Use a local connection supplier instead of the global connection supplier
      */
-    public BabyRepo(ConnectionSupplier connectionSupplier, KeyProvider keyProvider) {
-        this(keyProvider);
-        setLocalConnectionSupplier(connectionSupplier);
-    }
-
-    /**
-     * Use a local connection supplier instead of the global connection supplier
-     */
     public BabyRepo(Class<T> entityType, ConnectionSupplier connectionSupplier) {
         this(entityType);
-        setLocalConnectionSupplier(connectionSupplier);
-    }
-
-    /**
-     * Use a local connection supplier instead of the global connection supplier
-     */
-    public BabyRepo(Class<T> entityType, ConnectionSupplier connectionSupplier, KeyProvider keyProvider) {
-        this(entityType, keyProvider);
         setLocalConnectionSupplier(connectionSupplier);
     }
 
@@ -102,7 +70,7 @@ public class BabyRepo<T> extends CoreRepo<T> {
      * Find a single record that matches ALL of the columns
      *
      * @param columnValueMap A map of column names and the values to look up by.
-     *                       If the value is a collection, an in list will be created.
+     *                       If the columnNameOnThisEntity is a collection, an in list will be created.
      * @return The found record, if any
      */
     public T getOneByAll(Map<String, ?> columnValueMap) {
@@ -117,12 +85,12 @@ public class BabyRepo<T> extends CoreRepo<T> {
     }
 
     /**
-     * Get one record by a single column value. this is either the database column name or the field name.
+     * Get one record by a single column columnNameOnThisEntity. this is either the database column name or the field name.
      * We'll figure it out.
      *
      * @param field The field name/column name you want to look up the record by.
-     * @param value The value you're searching for.
-     *              If the value is a collection, an in list will be created.
+     * @param value The columnNameOnThisEntity you're searching for.
+     *              If the columnNameOnThisEntity is a collection, an in list will be created.
      * @return The found record if any
      */
     public T getOneBy(String field, Object value) {
@@ -133,7 +101,7 @@ public class BabyRepo<T> extends CoreRepo<T> {
      * Find a single record that matches ANY of the columns.
      *
      * @param columnValueMap A map of column names and the values to look up by.
-     *                       If the value is a collection, an in list will be created.
+     *                       If the columnNameOnThisEntity is a collection, an in list will be created.
      * @return The found record, if any
      */
     public T getOneByAny(Map<String, ?> columnValueMap) {
@@ -145,8 +113,8 @@ public class BabyRepo<T> extends CoreRepo<T> {
      * Find a many records that match a single column.
      *
      * @param field The field name/column name you want to look up the record by.
-     * @param value The value you're searching for.
-     *              If the value is a collection, an in list will be created.
+     * @param value The columnNameOnThisEntity you're searching for.
+     *              If the columnNameOnThisEntity is a collection, an in list will be created.
      */
     public List<T> getManyBy(String field, Object value) {
         return getManyByAll(Collections.singletonMap(field, value));
@@ -156,7 +124,7 @@ public class BabyRepo<T> extends CoreRepo<T> {
      * Find a many records that match ALL of the columns.
      *
      * @param columnValueMap A map of column/field names and the values to look up by.
-     *                       If the value is a collection, an in list will be created.
+     *                       If the columnNameOnThisEntity is a collection, an in list will be created.
      * @return The found records, if any
      */
     public List<T> getManyByAll(Map<String, ?> columnValueMap) {
@@ -168,7 +136,7 @@ public class BabyRepo<T> extends CoreRepo<T> {
      * Find a many records that match ANY of the columns.
      *
      * @param columnValueMap A map of column names and the values to look up by.
-     *                       If the value is a collection, an in list will be created.
+     *                       If the columnNameOnThisEntity is a collection, an in list will be created.
      * @return The found records, if any
      */
     public List<T> getManyByAny(Map<String, ?> columnValueMap) {
@@ -210,7 +178,7 @@ public class BabyRepo<T> extends CoreRepo<T> {
      * Delete by a specific column
      *
      * @param field The field/column name to delete by
-     * @param value The value to search by
+     * @param value The columnNameOnThisEntity to search by
      * @return Whether any records were deleted or not
      */
     public int deleteBy(String field, Object value) {
@@ -221,7 +189,7 @@ public class BabyRepo<T> extends CoreRepo<T> {
      * delete records that match ALL of the columns.
      *
      * @param columnValueMap A map of column names and the values to look up by.
-     *                       If the value is a collection, an in list will be created.
+     *                       If the columnNameOnThisEntity is a collection, an in list will be created.
      * @return whether any records were deleted
      */
     public int deleteByAll(Map<String, ?> columnValueMap) {
@@ -232,7 +200,7 @@ public class BabyRepo<T> extends CoreRepo<T> {
      * delete records that match ANY of the columns.
      *
      * @param columnValueMap A map of column names and the values to look up by.
-     *                       If the value is a collection, an in list will be created.
+     *                       If the columnNameOnThisEntity is a collection, an in list will be created.
      * @return whether any records were deleted
      */
     public int deleteByAny(Map<String, ?> columnValueMap) {
