@@ -30,13 +30,14 @@ It provides full CRUD capabilities for any entity object. The plan is to add onl
     - Automagically map object fields to row columns and vice versa
     - Insert, Update, Delete records
     - Query by any set of columns, either ANDed or ORed together
+    - Query multiple values for the same key by using any kind of Collection as the value
     - Arbitrary SQL query execution to fetch objects (think views in code).
-    
-    
+    - Automatically convert column names to the given Case (for instance, camelCase to snake_case)
+    - Support for multi column keys
 
 ##### planned features:
     - Support storing regular object types as JSON
-    - Support Joins to other tables
+    - Support Joins to other tables joined by multiple arbitrary keys
     - Support Transactions
 
 ### Why build another ORM?

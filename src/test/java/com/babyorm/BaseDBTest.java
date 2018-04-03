@@ -15,7 +15,7 @@ public class BaseDBTest {
 
     public static final List<TestDB> TEST_DBS = Arrays.asList(new DerbyTestDB(), new SQLiteTestDB(), new PostgresTestDB(), new MysqlTestDB());
     //switch to this for quick tests
-    //    public static final List<TestDB> TEST_DBS = Arrays.asList(new DerbyTestDB());
+//    public static final List<TestDB> TEST_DBS = Arrays.asList(new DerbyTestDB());
 
     protected BabyRepo<Baby> repo;
 

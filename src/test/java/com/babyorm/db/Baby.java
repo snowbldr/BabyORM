@@ -1,16 +1,18 @@
 package com.babyorm.db;
 
+import com.babyorm.annotation.ColumnCasing;
 import com.babyorm.annotation.ColumnName;
 import com.babyorm.annotation.PK;
+import com.babyorm.util.Case;
 
+@ColumnCasing(Case.SNAKE_CASE)
 public class Baby {
 
     @PK
-    @ColumnName("PK")
     private Long pk;
     private String name;
-    @ColumnName("hair_color")
     private String hairColor;
+    @ColumnName("numberOfToes")
     private int numberOfToes;
 //    private Parent parent;
 
