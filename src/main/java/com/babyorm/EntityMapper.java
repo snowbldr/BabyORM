@@ -56,9 +56,10 @@ public class EntityMapper<T> {
                                     m -> m.getParameterTypes()[0].equals(Integer.TYPE))));
 
 
-    public EntityMapper(List<Field> fields, Map<String,String> fieldNameToColName) {
+    public EntityMapper(Class<T> entityType, List<Field> fields, Map<String,String> fieldNameToColName) {
         this.fields = fields;
         this.fieldNameToColName = fieldNameToColName;
+        this.entityType = entityType;
     }
 
     /**

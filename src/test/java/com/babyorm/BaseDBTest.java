@@ -1,6 +1,9 @@
 package com.babyorm;
 
-import com.babyorm.db.*;
+import com.babyorm.db.Baby;
+import com.babyorm.db.DerbyTestDB;
+import com.babyorm.db.InitDBBeforeEach;
+import com.babyorm.db.TestDB;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,9 +16,9 @@ import java.util.Set;
 @ExtendWith(InitDBBeforeEach.class)
 public class BaseDBTest {
 
-    public static final List<TestDB> TEST_DBS = Arrays.asList(new DerbyTestDB(), new SQLiteTestDB(), new PostgresTestDB(), new MysqlTestDB());
+//    public static final List<TestDB> TEST_DBS = Arrays.asList(new DerbyTestDB(), new SQLiteTestDB(), new PostgresTestDB(), new MysqlTestDB());
     //switch to this for quick tests
-//    public static final List<TestDB> TEST_DBS = Arrays.asList(new DerbyTestDB());
+    public static final List<TestDB> TEST_DBS = Arrays.asList(new DerbyTestDB());
 
     protected BabyRepo<Baby> repo;
 
