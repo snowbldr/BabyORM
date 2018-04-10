@@ -8,13 +8,15 @@ A minimal ORM for accomplishing database tasks.
    - ``` new BabyRepo<Foo>(){};```<sup>*</sup> or ```BabyRepo.forType(Foo.class)); ```
 1. Set a connection supplier (i.e. ConnectionPoolX::getConnection)
 
-<sup>\*Th ```{}``` are necessary to infer the class at runtime, you do NOT need the extra curlies if you extend BabyRepo and specify the type parameter on your class</sup>
+<sup>\*The ```{}``` are necessary to infer the class at runtime, you do NOT need the extra curlies if you extend BabyRepo and specify the type parameter on your class</sup>
 
 ###### Fancy bits
-If the names of your classes and fields do not match exactly to the names in the database, you will
-need to provide the appropriate name annotation. 
-If the column names only differ in casing, you can put an ```@ColumnCasing``` annotation on the entity to specify
-which case the database column names are in. We will convert it for you so you don't have to spam column name annotations all over the universe.
+If the names of your classes and fields do not match exactly to the names of the tables and columns in the database, 
+you will need to provide the appropriate name annotation. 
+
+If the column names only differ in casing (I.e camelCase to snake_case), you can put a ```@ColumnCasing``` annotation on 
+the entity class to specify which case the database column names are in. This makes it so you don't have to put the
+```@ColumnName``` annotation on every damn field.
 
 If you have weird names for things: See ```@ColumnName```, ```@TableName```, ```@SchemaName```.
 
@@ -39,6 +41,7 @@ It provides full CRUD capabilities for any entity object. The plan is to add onl
     - Support storing regular object types as JSON
     - Support Joins to other tables joined by multiple arbitrary keys
     - Support Transactions
+    - Support Lazy fetching joined entities
 
 ### Why build another ORM?
 It was an accident

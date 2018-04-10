@@ -257,8 +257,8 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
     @MethodSource("testDBs")
     void deleteByPK() {
         Baby baby = saveBaby(new Baby());
-        boolean deleted = repo.delete(baby::getPk);
-        assertTrue(deleted);
+        int deleted = repo.delete(baby::getPk);
+        assertTrue(deleted==1);
         Baby dbBaby = repo.get(baby::getPk);
         assertNull(dbBaby);
 
@@ -267,8 +267,8 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
     @ParameterizedTest
     @MethodSource("testDBs")
     void delete_notdeleted() {
-        boolean deleted = repo.delete(()->null);
-        assertFalse(deleted);
+        int deleted = repo.delete(()->null);
+        assertFalse(deleted==1);
     }
 
     @ParameterizedTest
