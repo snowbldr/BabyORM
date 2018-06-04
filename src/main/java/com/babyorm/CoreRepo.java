@@ -2,6 +2,7 @@ package com.babyorm;
 
 import com.babyorm.annotation.*;
 import com.babyorm.util.Case;
+import com.babyorm.util.EntityReflectingUtils;
 import com.babyorm.util.SqlGen;
 
 import java.lang.reflect.Field;
@@ -10,10 +11,12 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.babyorm.util.ReflectiveUtils.*;
+import static com.babyorm.util.EntityReflectingUtils.*;
 
 /**
  * Where the work happens for the baby repo, this exists just to keep the core logic and all the nice fluff separate
@@ -24,18 +27,20 @@ public abstract class CoreRepo<T> {
 
     private EntityMapper<T> entityMapper;
     private ConnectionSupplier localConnectionSupplier;
-    private Class<T> entityType;
+    protected Class<T> entityType;
     private List<Field> fields, nonKeyFields;
     private String baseSql, updateSql, insertSqlNoKey, insertSql, deleteSql;
     protected static ConnectionSupplier globalConnectionSupplier;
     private List<Field> keyFields;
     private Map<String, KeyProvider> keyProviders;
     private boolean isAutoGen;
-    private Map<String, String> colNameToFieldName, fieldNameToColName;
+    protected Map<String, String> colNameToFieldName, fieldNameToColName;
     private String tableName;
 
+    private static final ConcurrentHashMap<Class<?>, CoreRepo<?>> REPO_REGISTRY = new ConcurrentHashMap<>();
+
     //TODO create keyProvider from PK annotation
-    protected void init(Class<T> entityType) {
+    protected CoreRepo(Class<T> entityType) {
         this.entityType = entityType;
         this.fields = Arrays.asList(this.entityType.getDeclaredFields());
 
@@ -69,12 +74,10 @@ public abstract class CoreRepo<T> {
         buildCachedSqlStatements();
     }
 
-    CoreRepo() {
+    protected static <ET, R extends CoreRepo<ET>> R getOrInitRepoForType(Class<ET> entityType, Function<Class<?>, CoreRepo<?>> repoCreator) {
+        return (R) REPO_REGISTRY.computeIfAbsent(entityType, repoCreator);
     }
 
-    CoreRepo(ConnectionSupplier localConnectionSupplier) {
-        this.localConnectionSupplier = localConnectionSupplier;
-    }
 
     /**
      * Set the global connection supplier to use across all repositories, probably shouldn't change this at run time,
@@ -93,14 +96,14 @@ public abstract class CoreRepo<T> {
 
     private void buildCachedSqlStatements() {
         this.tableName = determineTableName();
-        List<String> orderdFields = fields.stream().map(Field::getName).map(fieldNameToColName::get).collect(Collectors.toList());
+        List<String> orderedFields = fields.stream().map(Field::getName).map(fieldNameToColName::get).collect(Collectors.toList());
         List<String> orderedNonKeys = nonKeyFields.stream().map(Field::getName).map(fieldNameToColName::get).collect(Collectors.toList());
 
         this.baseSql = SqlGen.all(tableName);
         this.deleteSql = SqlGen.delete(tableName);
         this.updateSql = SqlGen.update(tableName, orderedNonKeys);
         this.insertSqlNoKey = SqlGen.insert(tableName, orderedNonKeys);
-        this.insertSql = SqlGen.insert(tableName, orderdFields);
+        this.insertSql = SqlGen.insert(tableName, orderedFields);
     }
 
     private String determineTableName() {
@@ -190,7 +193,7 @@ public abstract class CoreRepo<T> {
                 key.put(f.getName(), val);
             });
             String updateSql = this.updateSql + SqlGen.whereAll(key);
-            PreparedStatement st = entityMapper.prepare(conn, updateSql, Stream.concat(nonKeyFields.stream().map(f -> getSafe(f, record)), key.values().stream()).toArray());
+            PreparedStatement st = entityMapper.prepare(conn,  updateSql, Stream.concat(nonKeyFields.stream().map(f -> getSafe(f, record)), key.values().stream()).toArray());
             st.executeUpdate();
             return st.getUpdateCount() == 0 ? null : get(key.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e::getValue)));
         } catch (SQLException e) {
@@ -240,8 +243,8 @@ public abstract class CoreRepo<T> {
 
             PreparedStatement st = entityMapper.prepare(
                     conn,
-                    hasKey || !this.isAutoGen ? insertSql : insertSqlNoKey,
-                    getFieldValues(record, hasKey ? fields : nonKeyFields).toArray());
+                    hasKey || !isAutoGen ? insertSql : insertSqlNoKey,
+                    getColumnValues(record, hasKey || !isAutoGen ? fields : nonKeyFields).toArray());
             st.executeUpdate();
 
             if (!hasKey && this.isAutoGen) {
@@ -260,7 +263,7 @@ public abstract class CoreRepo<T> {
                                 })
                 );
             } else {
-                lookupKeyProvider = generatedKey.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> () -> e));
+                lookupKeyProvider = generatedKey.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e::getValue));
             }
             if (!conn.getAutoCommit()) {
                 conn.commit();
@@ -270,6 +273,28 @@ public abstract class CoreRepo<T> {
         }
 
         return get(lookupKeyProvider);
+    }
+
+    private List<Object> getColumnValues(Object entity, List<Field> fields) {
+        List<Object> values = new ArrayList<>(fields.size());
+        for (Field f : fields) {
+            if (EntityMapper.isSupportedSqlType(f.getType())) {
+                values.add(EntityReflectingUtils.getSafe(f, entity));
+            } else {
+                String ref = f.getAnnotation(FK.class).value();
+                Object child = EntityReflectingUtils.getSafe(f, entity);
+                if (child == null) {
+                    values.add(null);
+                } else {
+                    BabyRepo<?> childRepo = BabyRepo.forType(f.getType());
+                    String fieldName = childRepo.colNameToFieldName.getOrDefault(ref, ref);
+                    Field field = EntityReflectingUtils.getField(child.getClass(), fieldName)
+                            .orElseThrow(()-> new RuntimeException("Unable to find fk field value for "+entityType.getCanonicalName()+"#"+f.getName()));
+                    values.add(EntityReflectingUtils.getSafe(field, child));
+                }
+            }
+        }
+        return values;
     }
 
     /**

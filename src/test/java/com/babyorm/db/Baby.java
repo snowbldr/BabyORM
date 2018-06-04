@@ -2,6 +2,7 @@ package com.babyorm.db;
 
 import com.babyorm.annotation.ColumnCasing;
 import com.babyorm.annotation.ColumnName;
+import com.babyorm.annotation.FK;
 import com.babyorm.annotation.PK;
 import com.babyorm.util.Case;
 
@@ -14,7 +15,8 @@ public class Baby {
     private String hairColor;
     @ColumnName("numberOfToes")
     private int numberOfToes;
-//    private Parent parent;
+    @FK("pk")
+    private Parent parent;
 
     public Baby(){}
 
@@ -54,5 +56,13 @@ public class Baby {
 
     public void setNumberOfToes(int numberOfToes) {
         this.numberOfToes = numberOfToes;
+    }
+
+    public void setParent(Parent parent) {
+        this.parent = parent;
+    }
+
+    public Parent getParent() {
+        return parent;
     }
 }

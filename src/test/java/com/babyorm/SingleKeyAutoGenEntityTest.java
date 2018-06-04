@@ -1,14 +1,12 @@
 package com.babyorm;
 
 import com.babyorm.db.Baby;
+import com.babyorm.db.Parent;
 import com.babyorm.db.TestDB;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -22,6 +20,7 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
     @ParameterizedTest
     @MethodSource("testDBs")
     void setLocalConnectionSupplier(TestDB testDB) {
+
         BabyRepo.setGlobalConnectionSupplier(()->{throw new RuntimeException("This shouldn't have been used");});
         repo.setLocalConnectionSupplier(()->{throw new IllegalStateException("localConnection was used");});
 
@@ -33,6 +32,7 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
             assertThrows(IllegalStateException.class, ()->repo.update(baby));
             assertThrows(IllegalStateException.class, ()->repo.delete(baby));
         } finally {
+            repo.setLocalConnectionSupplier(null);
             BabyRepo.setGlobalConnectionSupplier(testDB::connectionSupplier);
         }
     }
@@ -44,7 +44,7 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
         baby.setHairColor("brown");
         baby.setNumberOfToes(9);
         baby.setName("Charlie");
-        Baby saved = saveBaby(baby);
+        Baby saved = this.repo.save(baby);
 
         Baby gotten = repo.get(saved::getPk);
         assertNotSame(gotten, saved);
@@ -62,10 +62,8 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
         baby.setHairColor("brown");
         baby.setNumberOfToes(9);
         baby.setName("Charlie");
-        IntStream.range(0,20).forEach(i->saveBaby(baby));
-        List<Baby> all = repo.getAll();
-        assertEquals(20, all.size());
-        assertTrue(all.stream().allMatch(b->"Charlie".equals(b.getName())));
+        IntStream.range(0,50).forEach(i->this.repo.save(baby));
+        assertTrue(this.repo.getAll().size() >= 50);
     }
 
     @ParameterizedTest
@@ -74,10 +72,11 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
         Baby baby = new Baby();
         baby.setHairColor("brown");
         baby.setNumberOfToes(9);
-        baby.setName("Charlie");
-        baby = saveBaby(baby);
+        String randoName = UUID.randomUUID().toString();
+        baby.setName(randoName);
+        baby = this.repo.save(baby);
 
-        Baby got = repo.getOneBy("name", "Charlie");
+        Baby got = repo.getOneBy("name", randoName);
 
         assertEquals(baby.getPk(), got.getPk());
         assertEquals(baby.getNumberOfToes(), got.getNumberOfToes());
@@ -87,14 +86,35 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
 
     @ParameterizedTest
     @MethodSource("testDBs")
+    void getOneWithParent(){
+        Parent parent = new Parent();
+        parent.setName("Jerry");
+        Parent savedParent = BabyRepo.forType(Parent.class).save(parent);
+
+        List<Parent> parents = BabyRepo.forType(Parent.class).getAll();
+        Baby baby = new Baby();
+        baby.setHairColor("brown");
+        baby.setNumberOfToes(9);
+        String randoName = UUID.randomUUID().toString();
+        baby.setName(randoName);
+        baby.setParent(savedParent);
+        this.repo.save(baby);
+
+        Baby got = repo.getOneBy("name", randoName);
+        assertNotNull(got.getParent());
+        assertEquals(savedParent.getPk(), got.getParent().getPk());
+    }
+
+    @ParameterizedTest
+    @MethodSource("testDBs")
     void getManyBy_fieldName() {
         Baby baby = new Baby();
         baby.setHairColor("brown");
         baby.setNumberOfToes(9);
         baby.setName("Charlie");
-        saveBaby(baby);
+        this.repo.save(baby);
         baby.setName("bob");
-        saveBaby(baby);
+        this.repo.save(baby);
 
         List<Baby> gotten = repo.getManyBy("hairColor", "brown");
         assertTrue(gotten.size()>1);
@@ -109,9 +129,9 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
         baby.setHairColor("red");
         baby.setNumberOfToes(9);
         baby.setName("Betty");
-        saveBaby(baby);
+        this.repo.save(baby);
         baby.setHairColor("brown");
-        saveBaby(baby);
+        this.repo.save(baby);
 
         List<Baby> gotten = repo.getManyBy("hairColor", Arrays.asList("brown", "red"));
         assertTrue(gotten.size()>1);
@@ -127,9 +147,9 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
         baby.setHairColor("brown");
         baby.setNumberOfToes(9);
         baby.setName("Charlie");
-        saveBaby(baby);
+        this.repo.save(baby);
         baby.setName("bob");
-        saveBaby(baby);
+        this.repo.save(baby);
 
         List<Baby> gotten = repo.getManyBy("hair_color", "brown");
         assertTrue(gotten.size()>1);
@@ -145,7 +165,7 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
         baby.setNumberOfToes(9);
         baby.setName("Charlie");
 
-        Baby saved = saveBaby(baby);
+        Baby saved = this.repo.save(baby);
         assertNotNull(saved.getPk());
         assertEquals(baby.getHairColor(), saved.getHairColor());
         assertEquals(baby.getName(), saved.getName());
@@ -165,13 +185,13 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
         saved.setHairColor("brown");
         saved.setNumberOfToes(9);
         saved.setName("Charlie");
-        saved = saveBaby(saved);
+        saved = this.repo.save(saved);
 
         Baby updated = new Baby(saved);
         updated.setPk(saved.getPk());
         updated.setName("Bob");
         updated.setHairColor("purple");
-        updated = saveBaby(updated);
+        updated = this.repo.save(updated);
 
         assertEquals(saved.getPk(), updated.getPk());
         assertNotEquals(saved.getHairColor(), updated.getHairColor());
@@ -198,7 +218,7 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
         saved.setHairColor("brown");
         saved.setNumberOfToes(9);
         saved.setName("Charlie");
-        saved = saveBaby(saved);
+        saved = this.repo.save(saved);
         Baby updated = new Baby(saved);
         updated.setPk(saved.getPk());
         updated.setName("Bob");
@@ -230,7 +250,7 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
         baby.setHairColor("brown");
         baby.setNumberOfToes(9);
         baby.setName("Charlie");
-        Baby saved = insertBaby(baby);
+        Baby saved = this.repo.insert(baby);
         assertNotNull(saved);
         assertNotNull(saved.getPk());
         assertNotSame(baby, saved);
@@ -243,7 +263,7 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
     @MethodSource("testDBs")
     void insert_nulls() {
         Baby baby = new Baby();
-        Baby saved = insertBaby(baby);
+        Baby saved = this.repo.insert(baby);
         assertNotNull(saved);
         assertNotNull(saved.getPk());
         assertNotSame(baby, saved);
@@ -256,9 +276,9 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
     @ParameterizedTest
     @MethodSource("testDBs")
     void deleteByPK() {
-        Baby baby = saveBaby(new Baby());
+        Baby baby = this.repo.save(new Baby());
         int deleted = repo.delete(baby::getPk);
-        assertTrue(deleted==1);
+        assertEquals(1, deleted);
         Baby dbBaby = repo.get(baby::getPk);
         assertNull(dbBaby);
 
@@ -274,7 +294,7 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
     @ParameterizedTest
     @MethodSource("testDBs")
     void delete() {
-        Baby baby = saveBaby(new Baby());
+        Baby baby = this.repo.save(new Baby());
         boolean deleted = repo.delete(baby);
         assertTrue(deleted);
         Baby dbBaby = repo.get(baby::getPk);
@@ -292,10 +312,11 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
     @MethodSource("testDBs")
     void deleteBy() {
         Baby baby = new Baby();
-        baby.setHairColor("brown");
-        baby = saveBaby(baby);
+        String crazyColor = UUID.randomUUID().toString();
+        baby.setHairColor(crazyColor);
+        baby = this.repo.save(baby);
 
-        int deleted = repo.deleteBy("hair_color", "brown");
+        int deleted = repo.deleteBy("hair_color", crazyColor);
         assertEquals(1, deleted);
         Baby dbBaby = repo.get(baby::getPk);
         assertNull(dbBaby);
@@ -307,12 +328,12 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
         Baby baby = new Baby();
         baby.setName("one");
         baby.setHairColor("red");
-        baby = saveBaby(baby);
+        baby = this.repo.save(baby);
 
         Baby otherBaby = new Baby(baby);
         otherBaby.setName("two");
         otherBaby.setHairColor("red");
-        otherBaby = saveBaby(otherBaby);
+        otherBaby = this.repo.save(otherBaby);
 
         Map<String,Object> vals = new HashMap<>();
         vals.put("name", "one");
@@ -329,12 +350,12 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
         Baby baby = new Baby();
         baby.setName("one");
         baby.setHairColor("red");
-        baby = saveBaby(baby);
+        baby = this.repo.save(baby);
 
         Baby otherBaby = new Baby(baby);
         otherBaby.setName("two");
         otherBaby.setHairColor("blue");
-        otherBaby = saveBaby(otherBaby);
+        otherBaby = this.repo.save(otherBaby);
 
         Map<String,Object> vals = new HashMap<>();
         vals.put("name", "one");

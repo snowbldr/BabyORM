@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 /**
  * Utils for reflecting on your life choices
  */
-public class ReflectiveUtils {
+public class EntityReflectingUtils {
     /**
      * Use me
      */
@@ -152,23 +152,15 @@ public class ReflectiveUtils {
     }
 
     /**
-     * Get a set of field values from an object
-     * @param val The object to get values from
-     * @param fields The fields to get from the object
-     * @return The list of field values
-     */
-    public static List<Object> getFieldValues(Object val, List<Field> fields) {
-        return fields.stream().map(f -> ReflectiveUtils.getSafe(f, val)).collect(Collectors.toList());
-    }
-
-    /**
      * Get the field, if it has it
      * @param clazz The class to find the field on
      * @param fieldName The name of the field
      */
     public static Optional<Field> getField(Class<?> clazz, String fieldName){
         try {
-            return Optional.ofNullable(clazz.getField(fieldName));
+            Field declaredField = clazz.getDeclaredField(fieldName);
+            if(declaredField != null) declaredField.setAccessible(true);
+            return Optional.ofNullable(declaredField);
         } catch (NoSuchFieldException e) {
             return Optional.empty();
         }

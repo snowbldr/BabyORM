@@ -19,7 +19,7 @@ public @interface FK {
      * <h2>One to One</h2>:
      *  table foo (
      *      id int,
-     *      bar_pk int
+     *      bar int
      *  )
      *  table bar (
      *      pk int
@@ -27,7 +27,7 @@ public @interface FK {
      *
      *  class Foo (
      *      int id;
-     *      @FK(@ColumnRef(name="bar_id", references="pk"))
+     *      @FK("pk")
      *      Bar bar;
      *  )
      *
@@ -38,7 +38,7 @@ public @interface FK {
      *  <h2>One to Many (non-unique key)</h2>:
      *  table foo (
      *      id int,
-     *      bar_color char
+     *      bars char
      *  )
      *  table bar (
      *      pk int,
@@ -47,7 +47,7 @@ public @interface FK {
      *
      *  class Foo (
      *      int id;
-     *      @FK(@ColumnRef(name="bar_color", references="color"))
+     *      @FK("color")
      *      List<Bar> bars;
      *  )
      *
@@ -62,7 +62,7 @@ public @interface FK {
      *  )
      *  table bar (
      *      pk int,
-     *      foo_id int
+     *      foo int
      *  )
      *
      *  class Foo (
@@ -72,7 +72,7 @@ public @interface FK {
      *
      *  class Bar (
      *      int pk;
-     *      @FK(@ColumnRef(name="foo_id", references="id"))
+     *      @FK("id")
      *      Foo foo;
      *  )
      *
@@ -80,27 +80,27 @@ public @interface FK {
      *  table foo (
      *      id int,
      *      name char,
-     *      bar_color char
+     *      bars char
      *  )
      *  table bar (
      *      pk int,
-     *      foo_name char,
+     *      foos char,
      *      color char
      *  )
      *
      * class Foo (
      *      int id;
      *      String name;
-     *      @FK(@ColumnRef(name="bar_color", references="color"))
+     *      @FK("color")
      *      List<Bar> bars;
      *  )
      *
      *  class Bar (
      *      int pk;
-     *      @FK(@ColumnRef(name="foo_name", references="name"))
-     *      List<Foo> foo;
+     *      @FK("colName")
+     *      List<Foo> foos;
      *  )
      *
      */
-    ColumnRef[] value();
+    String value();
 }

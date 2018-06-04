@@ -3,14 +3,12 @@ package com.babyorm;
 import com.babyorm.annotation.PK;
 import com.babyorm.util.SqlGen;
 
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.*;
 
 /**
  * A repo, baby
  * <p>
- * To make a new repo, use {@link #forType(Class)} or {@link #BabyRepo()};
+ * To make a new repo, use {@link #forType(Class)}
  * <p>
  * You must call {@link #setGlobalConnectionSupplier(ConnectionSupplier)} or provide a ConnectionSupplier via Constructor or setter
  * If you don't, shit's gonna throw errors telling you to do this.
@@ -27,43 +25,15 @@ public class BabyRepo<T> extends RelationshipHandlingRepo<T> {
     /**
      * Pretty straight forward, can't really screw this one up.
      */
-    public BabyRepo(Class<T> entityType) {
-        init(entityType);
-    }
-
-    /**
-     * You MUST extend this class and specify your entity type on the class that directly extends
-     * this class. try: new BabyRepo<Foo>(){};
-     */
-    public BabyRepo() {
-        Type genericSuperclass = this.getClass().getGenericSuperclass();
-        if (genericSuperclass == null || !(genericSuperclass instanceof ParameterizedType)) {
-            throw new BabyDBException("You must extend BabyRepo to use the no-arg constructor.");
-        }
-        init((Class<T>) ((ParameterizedType) genericSuperclass).getActualTypeArguments()[0]);
-    }
-
-    /**
-     * Use a local connection supplier instead of the global connection supplier
-     */
-    public BabyRepo(ConnectionSupplier connectionSupplier) {
-        this();
-        setLocalConnectionSupplier(connectionSupplier);
-    }
-
-    /**
-     * Use a local connection supplier instead of the global connection supplier
-     */
-    public BabyRepo(Class<T> entityType, ConnectionSupplier connectionSupplier) {
-        this(entityType);
-        setLocalConnectionSupplier(connectionSupplier);
+    private BabyRepo(Class<T> entityType) {
+        super(entityType);
     }
 
     /**
      * Factory method to get a new repository
      */
     public static <E> BabyRepo<E> forType(Class<E> type) {
-        return new BabyRepo<>(type);
+        return getOrInitRepoForType(type, BabyRepo::new);
     }
 
     /**
@@ -146,7 +116,9 @@ public class BabyRepo<T> extends RelationshipHandlingRepo<T> {
 
 
     /**
-     * Insert or update the given record
+     * Insert or update the given record. This has worse performance that insert or update by themselves as we have to
+     * determine if we're doing an insert or update by checking to see if the key is non null or if the record already
+     * exists in the database. If you are concerned about performance, use insert or update directly for less overhead.
      *
      * @param record The record to save
      * @return The saved record. The record is retrieved from the database after saving to guarantee generated values are retrieved.

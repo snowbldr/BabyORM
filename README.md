@@ -3,12 +3,10 @@ A minimal ORM for accomplishing database tasks.
  
 ### How the F*** do I use this thing?
 ###### Required to work
-1. The Entity/DTO type MUST have at least one field annotated with ```@PK```
-1. Get a new Repo 
-   - ``` new BabyRepo<Foo>(){};```<sup>*</sup> or ```BabyRepo.forType(Foo.class)); ```
+1. The Entity/DTO type MUST have at least one field annotated with ```@PK```. This does not mean that the field needs to correlate 
+to an actual primary key constraint in the database. 
+1. Get a new Repo via ```BabyRepo.forType(Foo.class)); ```
 1. Set a connection supplier (i.e. ConnectionPoolX::getConnection)
-
-<sup>\*The ```{}``` are necessary to infer the class at runtime, you do NOT need the extra curlies if you extend BabyRepo and specify the type parameter on your class</sup>
 
 ###### Fancy bits
 If the names of your classes and fields do not match exactly to the names of the tables and columns in the database, 
@@ -36,6 +34,7 @@ It provides full CRUD capabilities for any entity object. The plan is to add onl
     - Arbitrary SQL query execution to fetch objects (think views in code).
     - Automatically convert column names to the given Case (for instance, camelCase to snake_case)
     - Support for multi column keys
+    - Prevent SQL injection attacks using the ORM methods. This does not apply to queries run using the execute method.
 
 ##### planned features:
     - Support storing regular object types as JSON

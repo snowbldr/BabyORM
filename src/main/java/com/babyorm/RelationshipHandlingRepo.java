@@ -1,20 +1,29 @@
 package com.babyorm;
 
-import java.sql.Connection;
+import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map;
 
-public class RelationshipHandlingRepo<T> extends CoreRepo<T> {
+/**
+ * Abstract class for methods related only to handling joins to other entities
+ */
+public abstract class RelationshipHandlingRepo<T> extends CoreRepo<T> {
 
+    private Map<Class<?>, Map<String, Field>> relationshipJoinKeys = new HashMap<>();
+    private Map<String, Class<?>> colOrFieldNameToClass = new HashMap<>();
 
+    protected RelationshipHandlingRepo(Class<T> entityType) {
+        super(entityType);
+    }
+    //provide the necessary query methods that take a connection object to re-use for down stream sql calls
 
-    @Override
-    protected Connection getConnection() {
-            /*
-            ensure all queries to get any given object graph all use the same connection
-            keep a stack of entity class names
-            keep using the same inheritable trhead local until we empty the stack
-            pop on each downstream, downstream call, pop off
-            if we find a circular dependency, make sure to set it but avoid getting stuck in a loop
-    */
-        return super.getConnection();
+    protected Class<?> getColumnClass(String name){
+        return colOrFieldNameToClass.computeIfAbsent(name, s-> {
+            try {
+                return entityType.getDeclaredField(colNameToFieldName.getOrDefault(s, s)).getType();
+            } catch (NoSuchFieldException e) {
+                throw new RuntimeException("Invalid field or column colName \""+s+"\". Check your @References annotations!");
+            }
+        });
     }
 }

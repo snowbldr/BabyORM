@@ -36,7 +36,9 @@ public class MysqlTestDB extends TestDB {
         return Arrays.asList(
                 "drop table if exists baby",
                 "drop table if exists no_autogen",
-                "create table baby (pk int auto_increment primary key, name text, hair_color text, numberOfToes INT )",
+                "drop table if exists parent",
+                "create table baby (pk int auto_increment primary key, name text, hair_color text, numberOfToes INT, parent text)",
+                "create table parent (pk text, name text)",
                 "create table no_autogen (pk text, name text )");
     }
 }

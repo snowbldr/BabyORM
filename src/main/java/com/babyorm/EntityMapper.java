@@ -1,6 +1,7 @@
 package com.babyorm;
 
-import com.babyorm.util.ReflectiveUtils;
+import com.babyorm.annotation.FK;
+import com.babyorm.util.EntityReflectingUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -8,7 +9,7 @@ import java.sql.*;
 import java.util.*;
 import java.util.stream.Stream;
 
-import static com.babyorm.util.ReflectiveUtils.*;
+import static com.babyorm.util.EntityReflectingUtils.*;
 
 public class EntityMapper<T> {
 
@@ -55,6 +56,10 @@ public class EntityMapper<T> {
                                     m -> m.getParameterCount() == 2,
                                     m -> m.getParameterTypes()[0].equals(Integer.TYPE))));
 
+
+    public static boolean isSupportedSqlType(Class<?> clazz){
+        return STATEMENT_SETTERS.containsKey(clazz);
+    }
 
     public EntityMapper(Class<T> entityType, List<Field> fields, Map<String,String> fieldNameToColName) {
         this.fields = fields;
@@ -106,9 +111,13 @@ public class EntityMapper<T> {
 
     private Object getResultValue(Field field, ResultSet resultSet, Map<Class<?>, Method> getters, Object getterArg) {
         Class<?> type = field.getType();
-        Method getter = Optional.ofNullable(getters.get(type)).orElse(getters.get(Object.class));
-
-        Object result = ReflectiveUtils.invokeSafe(getter, resultSet, getterArg);
+        Optional<Method> method = Optional.ofNullable(getters.get(type));
+        Object result;
+        if(method.isPresent()){
+            result = EntityReflectingUtils.invokeSafe(method.get(), resultSet, getterArg);
+        } else {
+            result = getChildEntity(field, resultSet, getters, getterArg);
+        }
         if (result == null) {
             return null;
         } else if (PRIMITIVE_INVERSE.containsKey(type)) {
@@ -121,6 +130,17 @@ public class EntityMapper<T> {
                     "Wanted a " + type.getCanonicalName() + " but got a " + result.getClass().getCanonicalName());
         }
         return result;
+    }
+
+    private Object getChildEntity(Field field, ResultSet resultSet, Map<Class<?>, Method> getters, Object getterArg){
+        //if field is a collection type, get it's parameterized type to determine the entity type
+        //see what happens if the type isn't specified, like List and throw an error in that case
+        //create and pass a stack of entity classes and identifiers as unique values (a hash maybe)
+        //if we find a circular dependency, set the value but stop the traversal
+        BabyRepo childRepo = BabyRepo.forType(field.getType());
+        String ref = Optional.ofNullable(field.getAnnotation(FK.class)).map(FK::value).get();
+        Object refValue = EntityReflectingUtils.invokeSafe(getters.get(childRepo.getColumnClass(ref)), resultSet, getterArg);
+        return childRepo.getOneBy(ref, refValue);
     }
 
     public List<T> mapResultSet(PreparedStatement st, boolean isMany) {
