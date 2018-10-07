@@ -28,6 +28,7 @@ public abstract class CoreRepo<T> {
     private EntityMapper<T> entityMapper;
     private ConnectionSupplier localConnectionSupplier;
     protected Class<T> entityType;
+    private Field databaseGeneratedField;
     private List<Field> fields, nonKeyFields;
     private String baseSql, updateSql, insertSqlNoKey, insertSql, deleteSql;
     protected static ConnectionSupplier globalConnectionSupplier;
@@ -106,11 +107,17 @@ public abstract class CoreRepo<T> {
         this.insertSql = SqlGen.insert(tableName, orderedFields);
     }
 
-    private String determineTableName() {
-        String tableName = Optional.ofNullable(this.entityType.getAnnotation(SchemaName.class))
-                .map(s -> s.value() + ".")
-                .orElse("");
-        tableName += Optional.ofNullable(this.entityType.getAnnotation(TableName.class))
+    /**
+     * Gets the table name from the database to guarantee correct casing and schema
+     *
+     * @param clazz The entity type
+     * @return The full table name with schema
+     */
+    private String determineTableFullName(Class<T> clazz) {
+        String configuredSchema = Optional.ofNullable(clazz.getAnnotation(SchemaName.class))
+                .map(SchemaName::value)
+                .orElse(null);
+        String configuredName = Optional.ofNullable(clazz.getAnnotation(TableName.class))
                 .map(TableName::value)
                 .orElseGet(() -> Character.toLowerCase(entityType.getSimpleName().charAt(0)) + entityType.getSimpleName().substring(1));
         return tableName;
@@ -204,8 +211,8 @@ public abstract class CoreRepo<T> {
     /**
      * perform an arbitrary update on the database.
      *
-     * @param fieldsToUpdate The fields to update with their new values
-     * @param whereFields    The fields and values to use in the where clause of the query
+     * @param fieldsToUpdate The fields to set in the update query and the values to set them to. set key=value...
+     * @param whereFields    The fields and values to use in the where clause of the query. where key=value...
      * @return The count of records that were updated
      */
     public int updateMany(Map<String, ?> fieldsToUpdate, Map<String, ?> whereFields) {
@@ -230,15 +237,20 @@ public abstract class CoreRepo<T> {
      */
     public T insert(T record) {
         Objects.requireNonNull(record, "Can't save a null record");
-        Map<String, ?> keyValue = keyValueFromRecord(record);
+        Map<String, ?> keyValue = fieldValueMap(keyFields, record);
         boolean hasKey = keyValue != null && keyValue.size() > 0;
         final Map<String, KeyProvider> lookupKeyProvider;
 
         try (Connection conn = getConnection()) {
-            final Map<String, Object> generatedKey = new HashMap<>();
-            if (!isAutoGen) {
-                generatedKey.putAll(toKey(this.keyProviders));
-                keyFields.forEach(f -> setSafe(f, record, generatedKey.get(f.getName())));
+            final Map<String, Object> generatedValues = new HashMap<>();
+            if (!columnValueProviders.isEmpty()) {
+                columnValueProviders.forEach((k, v)->{
+                    if(getSafe(k, record) == null){
+                        Object generatedValue = v.value();
+                        generatedValues.put(k.getName(), generatedValue);
+                        setSafe(k, record, generatedValue);
+                    }
+                });
             }
 
             PreparedStatement st = entityMapper.prepare(
@@ -262,8 +274,13 @@ public abstract class CoreRepo<T> {
                                     return () -> r;
                                 })
                 );
+            } else if (!keyFields.isEmpty()) {
+                lookupKeyProvider = keyFields.stream().collect(Collectors.toMap(Field::getName, f -> {
+                    Object value = generatedValues.getOrDefault(f.getName(), getSafe(f, record));
+                    return ()->value;
+                }));
             } else {
-                lookupKeyProvider = generatedKey.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e::getValue));
+                lookupKeyProvider = null;
             }
             if (!conn.getAutoCommit()) {
                 conn.commit();
@@ -271,8 +288,13 @@ public abstract class CoreRepo<T> {
         } catch (SQLException e) {
             throw new BabyDBException("Insert failed", e);
         }
-
-        return get(lookupKeyProvider);
+        if(lookupKeyProvider == null){
+            logger.warning("Because no primary key fields are configured on the class and there is not a primary" +
+                    " key constraint on the entity: "+ entityType.getCanonicalName()+" the record that was being inserted" +
+                    " is being returned without first re-fetching the record from the database. This means you will miss" +
+                    " any data that changed due to triggers firing on insert in the database.");
+        }
+        return lookupKeyProvider == null ? record : get(lookupKeyProvider);
     }
 
     private List<Object> getColumnValues(Object entity, List<Field> fields) {
@@ -287,7 +309,7 @@ public abstract class CoreRepo<T> {
                     values.add(null);
                 } else {
                     BabyRepo<?> childRepo = BabyRepo.forType(f.getType());
-                    String fieldName = childRepo.colNameToFieldName.getOrDefault(ref, ref);
+                    String fieldName = childRepo.colNameToFieldName.getOrDefault(ref.toUpperCase(), ref);
                     Field field = EntityReflectingUtils.getField(child.getClass(), fieldName)
                             .orElseThrow(()-> new RuntimeException("Unable to find fk field value for "+entityType.getCanonicalName()+"#"+f.getName()));
                     values.add(EntityReflectingUtils.getSafe(field, child));
@@ -325,8 +347,8 @@ public abstract class CoreRepo<T> {
     }
 
     protected LinkedHashMap<String, ?> keysToColumnNames(Map<String, ?> map) {
-        LinkedHashMap<String, Object> colNameValueMap = map instanceof LinkedHashMap ? (LinkedHashMap<String, Object>) map : new LinkedHashMap<>(map.size());
-        map.forEach((s, o) -> colNameValueMap.put(colNameToFieldName.containsKey(s) ? s : fieldNameToColName.get(s), o));
+        LinkedHashMap<String, Object> colNameValueMap = new LinkedHashMap<>(map.size());
+        map.forEach((s, o) -> colNameValueMap.put(colNameToFieldName.containsKey(s.toUpperCase()) ? s.toUpperCase() : fieldNameToColName.get(s), o));
         return colNameValueMap;
     }
 
@@ -347,5 +369,9 @@ public abstract class CoreRepo<T> {
 
     protected List<Field> getKeyFields() {
         return keyFields;
+    }
+
+    protected List<Field> getFields() {
+        return fields;
     }
 }

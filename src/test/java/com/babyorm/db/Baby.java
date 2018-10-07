@@ -12,6 +12,7 @@ public class Baby {
     @PK
     private Long pk;
     private String name;
+    @Column(name = "hair_color")
     private String hairColor;
     @ColumnName("numberOfToes")
     private int numberOfToes;

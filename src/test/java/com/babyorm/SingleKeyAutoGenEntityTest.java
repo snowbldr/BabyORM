@@ -3,6 +3,8 @@ package com.babyorm;
 import com.babyorm.db.Baby;
 import com.babyorm.db.Parent;
 import com.babyorm.db.TestDB;
+import org.hibernate.Session;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -257,6 +259,53 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
         assertEquals(baby.getHairColor(), saved.getHairColor());
         assertEquals(baby.getName(), saved.getName());
         assertEquals(baby.getNumberOfToes(), saved.getNumberOfToes());
+    }
+
+    @Disabled
+    @ParameterizedTest
+    @MethodSource("testDBs")
+    void insert_lots() {
+        for(int i=0; i<10000; i++){
+            Baby baby = new Baby();
+            baby.setHairColor("brown");
+            baby.setNumberOfToes(9);
+            baby.setName("Charlie");
+            Baby saved = this.repo.insert(baby);
+            assertNotNull(saved.getPk());
+        }
+    }
+
+    @Disabled
+    @ParameterizedTest
+    @MethodSource("testDBs")
+    void insert_lots_hibernate(TestDB testDB){
+        Session session = testDB.getSessionFactory().openSession();
+
+
+        for(int i=0; i<10000; i++){
+            Baby baby = new Baby();
+            baby.setHairColor("brown");
+            baby.setNumberOfToes(9);
+            baby.setName("Charlie");
+
+            session.save(baby);
+            assertNotNull(baby.getPk());
+        }
+
+    }
+
+    @Disabled
+    @ParameterizedTest
+    @MethodSource("testDBs")
+    void insert_lots_by_values() {
+        for(int i=0; i<10000; i++){
+            Map<String, Object> values = new HashMap<>();
+            values.put("hair_color","brown");
+            values.put("numberOfToes", 9);
+            values.put("name", "Charlie");
+            Optional<Object> key = this.repo.insertByValues(values);
+            assertTrue(key.isPresent());
+        }
     }
 
     @ParameterizedTest

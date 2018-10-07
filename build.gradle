@@ -14,4 +14,8 @@ dependencies {
     testCompile group: 'org.postgresql', name: 'postgresql', version: '42.2.2'
     testCompile group: 'com.wix', name: 'wix-embedded-mysql', version: '4.1.0'
     testCompile group: 'mysql', name: 'mysql-connector-java', version: '6.0.6'
+    testCompile group: 'com.zaxxer', name: 'HikariCP', version: '3.2.0'
+    testCompile group: 'org.hibernate', name: 'hibernate-core', version: '5.3.6.Final'
+    testCompile group: 'org.hibernate', name: 'hibernate-hikaricp', version: '5.3.6.Final'
+
 }

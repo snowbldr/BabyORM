@@ -126,7 +126,7 @@ public class BabyRepo<T> extends RelationshipHandlingRepo<T> {
 
     public T save(T record) {
         Objects.requireNonNull(record, "Can't save a null record");
-        Map<String, ?> key = keyValueFromRecord(record);
+        Map<String, ?> key = fieldValueMap(getKeyFields(), record);
         Object o = key.size() == getKeyFields().size() ? getOneByAll(key) : null;
         if (o == null) {
             return insert(record);
@@ -143,7 +143,7 @@ public class BabyRepo<T> extends RelationshipHandlingRepo<T> {
      * @return whether a record was deleted or not
      */
     public boolean delete(T entity) {
-        return deleteByAll(keyValueFromRecord(entity)) > 0;
+        return (getKeyFields().isEmpty() ? deleteByAll(fieldValueMap(getFields(), entity)) : deleteByAll(fieldValueMap(getKeyFields(), entity))) > 0;
     }
 
     /**

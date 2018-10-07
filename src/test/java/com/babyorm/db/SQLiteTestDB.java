@@ -6,7 +6,7 @@ import java.util.List;
 public class SQLiteTestDB extends TestDB{
 
     public SQLiteTestDB() {
-        super("org.sqlite.JDBC", "jdbc:sqlite:sqliteBabyOrm");
+        super("org.sqlite.JDBC", "jdbc:sqlite:sqliteBabyOrm", null);
     }
 
     @Override

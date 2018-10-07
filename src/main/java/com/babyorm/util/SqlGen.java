@@ -1,6 +1,8 @@
 package com.babyorm.util;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class SqlGen {
@@ -11,7 +13,7 @@ public class SqlGen {
      */
     public static String insert(String tableName, List<String> columnNames) {
         return "insert into " + tableName
-                + "(" + columnNames.stream().collect(Collectors.joining(",")) + ")"
+                + "(" + String.join(",", columnNames) + ")"
                 + " values (" + columnNames.stream().map(f -> "?").collect(Collectors.joining(",")) + ")";
     }
 

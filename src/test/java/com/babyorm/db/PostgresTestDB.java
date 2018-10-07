@@ -11,7 +11,7 @@ public class PostgresTestDB extends TestDB {
     private static EmbeddedPostgres postgres;
 
     public PostgresTestDB() {
-        super("org.postgresql.Driver", initPostgres());
+        super("org.postgresql.Driver", initPostgres(), "org.hibernate.dialect.PostgreSQLDialect");
     }
 
     private static String initPostgres(){

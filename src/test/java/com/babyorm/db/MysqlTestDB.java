@@ -12,7 +12,7 @@ public class MysqlTestDB extends TestDB {
     private static EmbeddedMysql mysql;
 
     public MysqlTestDB() {
-        super("com.mysql.cj.jdbc.Driver", initMysql());
+        super("com.mysql.cj.jdbc.Driver", initMysql(), "org.hibernate.dialect.MySQLDialect");
     }
 
     private static String initMysql(){

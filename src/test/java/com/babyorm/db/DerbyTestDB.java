@@ -6,7 +6,7 @@ import java.util.List;
 public class DerbyTestDB extends TestDB {
 
     public DerbyTestDB() {
-        super("org.apache.derby.jdbc.EmbeddedDriver", "jdbc:derby:memory:babyorm;create=true");
+        super("org.apache.derby.jdbc.EmbeddedDriver", "jdbc:derby:memory:babyorm;create=true", null);
     }
 
     @Override

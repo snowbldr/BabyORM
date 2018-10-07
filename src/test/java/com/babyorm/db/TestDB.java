@@ -1,21 +1,39 @@
 package com.babyorm.db;
 
+import com.zaxxer.hikari.HikariDataSource;
+import org.hibernate.SessionFactory;
+import org.hibernate.cfg.Configuration;
+
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 
 public abstract class TestDB {
     private String connectString;
+    private HikariDataSource ds;
+    private SessionFactory sessionFactory;
 
-    protected TestDB(String driverClass, String connectString) {
+    protected TestDB(String driverClass, String connectString, String hibernateDialect) {
         try {
             Class.forName(driverClass);
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
         this.connectString = connectString;
+        ds = new HikariDataSource();
+        ds.setJdbcUrl(connectString);
+        ds.setMaximumPoolSize(50);
+
+        if(hibernateDialect != null){
+            Configuration config = new Configuration();
+            config.addAnnotatedClass(Baby.class);
+            config.addAnnotatedClass(Parent.class);
+            config.setProperty("hibernate.dialect", hibernateDialect);
+            config.setProperty("hibernate.connection.driver_class", driverClass);
+            config.setProperty("hibernate.connection.url", connectString);
+            sessionFactory = config.buildSessionFactory();
+        }
 
         try(Connection conn = connectionSupplier()){
             Statement st = conn.createStatement();
@@ -33,10 +51,14 @@ public abstract class TestDB {
 
     public Connection connectionSupplier(){
         try {
-            return DriverManager.getConnection(connectString);
+            return ds.getConnection();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public SessionFactory getSessionFactory(){
+        return sessionFactory;
     }
     public void tearDown(){}
 
