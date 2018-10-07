@@ -17,8 +17,12 @@ public class CaseTest {
                 String expected = toCase.whatDoesItLookLike();
                 String converted = Case.convert(fromCase.whatDoesItLookLike(), toCase);
                 System.out.println("Converted: " + fromCase.whatDoesItLookLike() + " to " + converted );
-                assertEquals(expected, converted,
-                        "Failed to convert from: "+fromCase.name()+" to: "+toCase.name());
+                if(fromCase.isWordPreserving()){
+                    assertEquals(expected, converted,
+                            "Failed to convert from: "+fromCase.name()+" to: "+toCase.name());
+                } else {
+                    System.out.println("non word preserving from case can't be converted to any case deterministically");
+                }
             }
         }
     }

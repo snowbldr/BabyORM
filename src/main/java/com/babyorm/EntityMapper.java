@@ -1,6 +1,6 @@
 package com.babyorm;
 
-import com.babyorm.annotation.FK;
+import com.babyorm.annotation.JoinTo;
 import com.babyorm.util.EntityReflectingUtils;
 
 import java.lang.reflect.Field;
@@ -138,7 +138,7 @@ public class EntityMapper<T> {
         //create and pass a stack of entity classes and identifiers as unique values (a hash maybe)
         //if we find a circular dependency, set the value but stop the traversal
         BabyRepo childRepo = BabyRepo.forType(field.getType());
-        String ref = Optional.ofNullable(field.getAnnotation(FK.class)).map(FK::value).get();
+        String ref = Optional.ofNullable(field.getAnnotation(JoinTo.class)).map(JoinTo::value).get();
         Object refValue = EntityReflectingUtils.invokeSafe(getters.get(childRepo.getColumnClass(ref)), resultSet, getterArg);
         return childRepo.getOneBy(ref, refValue);
     }

@@ -10,7 +10,7 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
-public @interface FK {
+public @interface JoinTo {
     /**
      * References from this entity to the target entity.
      *
@@ -27,7 +27,7 @@ public @interface FK {
      *
      *  class Foo (
      *      int id;
-     *      @FK("pk")
+     *      @JoinTo("pk")
      *      Bar bar;
      *  )
      *
@@ -47,7 +47,7 @@ public @interface FK {
      *
      *  class Foo (
      *      int id;
-     *      @FK("color")
+     *      @JoinTo("color")
      *      List<Bar> bars;
      *  )
      *
@@ -72,7 +72,7 @@ public @interface FK {
      *
      *  class Bar (
      *      int pk;
-     *      @FK("id")
+     *      @JoinTo("id")
      *      Foo foo;
      *  )
      *
@@ -91,13 +91,13 @@ public @interface FK {
      * class Foo (
      *      int id;
      *      String name;
-     *      @FK("color")
+     *      @JoinTo("color")
      *      List<Bar> bars;
      *  )
      *
      *  class Bar (
      *      int pk;
-     *      @FK("colName")
+     *      @JoinTo("colName")
      *      List<Foo> foos;
      *  )
      *

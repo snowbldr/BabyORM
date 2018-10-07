@@ -6,8 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Specify the exact name of the table column associate with this object field.
- * This value supersedes any {@link ColumnCasing} that has been set for the entity.
+ * Specify the exact name of the table column associated with this object field.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)

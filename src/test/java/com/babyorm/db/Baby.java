@@ -1,22 +1,28 @@
 package com.babyorm.db;
 
-import com.babyorm.annotation.ColumnCasing;
 import com.babyorm.annotation.ColumnName;
-import com.babyorm.annotation.FK;
-import com.babyorm.annotation.PK;
-import com.babyorm.util.Case;
+import com.babyorm.annotation.Generated;
+import com.babyorm.annotation.JoinTo;
+import com.babyorm.annotation.TableName;
 
-@ColumnCasing(Case.SNAKE_CASE)
-public class Baby {
+import javax.persistence.*;
+import java.io.Serializable;
 
-    @PK
+@Entity
+@TableName("baby")
+public class Baby implements Serializable {
+
+    @Generated(isDatabaseGenerated = true)
+    @GeneratedValue(strategy=GenerationType.IDENTITY)
+    @Id
     private Long pk;
     private String name;
     @Column(name = "hair_color")
     private String hairColor;
     @ColumnName("numberOfToes")
     private int numberOfToes;
-    @FK("pk")
+    @JoinTo("pk")
+    @Transient
     private Parent parent;
 
     public Baby(){}

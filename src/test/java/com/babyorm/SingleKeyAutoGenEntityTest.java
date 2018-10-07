@@ -23,8 +23,8 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
     @MethodSource("testDBs")
     void setLocalConnectionSupplier(TestDB testDB) {
 
-        BabyRepo.setGlobalConnectionSupplier(()->{throw new RuntimeException("This shouldn't have been used");});
-        repo.setLocalConnectionSupplier(()->{throw new IllegalStateException("localConnection was used");});
+        BabyRepo.setDefaultConnectionSupplier(()->{throw new RuntimeException("This shouldn't have been used");});
+        repo.setConnectionSupplier(()->{throw new IllegalStateException("localConnection was used");});
 
         Baby baby = new Baby();
         baby.setPk(1L);
@@ -34,8 +34,8 @@ class SingleKeyAutoGenEntityTest extends BaseDBTest{
             assertThrows(IllegalStateException.class, ()->repo.update(baby));
             assertThrows(IllegalStateException.class, ()->repo.delete(baby));
         } finally {
-            repo.setLocalConnectionSupplier(null);
-            BabyRepo.setGlobalConnectionSupplier(testDB::connectionSupplier);
+            repo.setConnectionSupplier(null);
+            BabyRepo.setDefaultConnectionSupplier(testDB::connectionSupplier);
         }
     }
 

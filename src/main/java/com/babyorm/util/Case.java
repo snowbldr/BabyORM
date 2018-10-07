@@ -5,22 +5,30 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public enum Case {
-    CAMEL_CASE("looksLikeThis","", s->Character.toUpperCase(s.charAt(0)) + s.substring(1).toLowerCase()),
-    PASCAL_CASE("LooksLikeThis","", CAMEL_CASE.wordTransform),
-    KEBAB_CASE("looks-like-this","-", String::toLowerCase),
-    SNAKE_CASE("looks_like_this","_", String::toLowerCase),
-    UPPER_KEBAB_CASE("LOOKS-LIKE-THIS","-", String::toUpperCase),
-    UPPER_SNAKE_CASE("LOOKS_LIKE_THIS","_", String::toUpperCase),
-    CHOO_CHOO_TRAIN("looks#like#this","#", String::toLowerCase),
-    UPPER_CHOO_CHOO_TRAIN("LOOKS#LIKE#THIS","#", String::toUpperCase);
+    CAMEL_CASE("looksLikeThis","", s->Character.toUpperCase(s.charAt(0)) + s.substring(1).toLowerCase(), true),
+    PASCAL_CASE("LooksLikeThis","", CAMEL_CASE.wordTransform, true),
+    KEBAB_CASE("looks-like-this","-", String::toLowerCase, true),
+    SNAKE_CASE("looks_like_this","_", String::toLowerCase, true),
+    UPPER_KEBAB_CASE("LOOKS-LIKE-THIS","-", String::toUpperCase, true),
+    UPPER_SNAKE_CASE("LOOKS_LIKE_THIS","_", String::toUpperCase, true),
+    CHOO_CHOO_TRAIN("looks#like#this","#", String::toLowerCase, true),
+    UPPER_CHOO_CHOO_TRAIN("LOOKS#LIKE#THIS","#", String::toUpperCase, true),
+    ALL_LOWER("lookslikethis","",String::toLowerCase, false),
+    ALL_CAPS("LOOKSLIKETHIS","",String::toUpperCase, false);
 
     private String looksLikeThis, joiner;
+    private boolean wordPreserving;
     private Function<String,String> wordTransform;
 
-    Case(String looksLikeThis, String joiner, Function<String,String> wordTransform) {
+    public boolean isWordPreserving() {
+        return wordPreserving;
+    }
+
+    Case(String looksLikeThis, String joiner, Function<String,String> wordTransform, boolean wordPreserving) {
         this.looksLikeThis = looksLikeThis;
         this.joiner = joiner;
         this.wordTransform = wordTransform;
+        this.wordPreserving = wordPreserving;
     }
 
     public String whatDoesItLookLike(){

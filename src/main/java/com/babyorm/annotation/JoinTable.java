@@ -24,16 +24,16 @@ import java.lang.annotation.Target;
  *      int id;
  *      String name;
  *      @JoinTable(tableName="foo_bar",
- *                 thisEntity"foo_id",
- *                 propEntity="bar_pk")
+ *                 thisColumn"foo_id",
+ *                 propColumn="bar_pk")
  *      Bar bar;
  *  )
  *
  *  class Bar (
  *      int pk;
  *      @JoinTable(tableName="foo_bar",
- *                 thisEntity="bar_pk",
- *                 propEntity="foo_id")
+ *                 thisColumn="bar_pk",
+ *                 propColumn="foo_id")
  *      List<Foo> foo;
  *  )
  *
@@ -43,11 +43,11 @@ import java.lang.annotation.Target;
 public @interface JoinTable {
     String tableName();
     /**
-     * The column name on the join table to join to using the PK fields of this entity
+     * The column name on this entity to join with. The join table must have the same exact column name.
      */
-    String thisEntity();
+    String thisColumn();
     /**
-     *  The column name to get the key to look up the child entity with
+     *  The column name on the prop entity to join with. The join table must have the same exact column name.
      */
-    String propEntity();
+    String propColumn();
 }

@@ -12,8 +12,8 @@ public abstract class RelationshipHandlingRepo<T> extends CoreRepo<T> {
     private Map<Class<?>, Map<String, Field>> relationshipJoinKeys = new HashMap<>();
     private Map<String, Class<?>> colOrFieldNameToClass = new HashMap<>();
 
-    protected RelationshipHandlingRepo(Class<T> entityType) {
-        super(entityType);
+    protected RelationshipHandlingRepo(Class<T> entityType, ConnectionSupplier connectionSupplier) {
+        super(entityType, connectionSupplier);
     }
     //provide the necessary query methods that take a connection object to re-use for down stream sql calls
 

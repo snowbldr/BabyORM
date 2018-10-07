@@ -6,3 +6,6 @@
 hs_err_pid*
 derby.log
 sqliteBabyOrm
+target
+out
+build
