@@ -51,7 +51,7 @@ public abstract class CoreRepo<T> {
         String schemaName = tableFullName.contains(".") ? tableFullName.split("\\.")[0] : null;
         String tableName = tableFullName.contains(".") ? tableFullName.split("\\.")[1] : tableFullName;
         fields = Arrays.stream(entityType.getDeclaredFields())
-                .filter(f -> !Modifier.isTransient(f.getModifiers()))
+                .filter(f -> !isTransient(f))
                 .collect(Collectors.toList());
         fields.forEach(f -> f.setAccessible(true));
 
@@ -448,7 +448,7 @@ public abstract class CoreRepo<T> {
         for (Field f : fields) {
             if (EntityMapper.isSupportedSqlType(f.getType())) {
                 values.add(EntityReflectingUtils.getSafe(f, entity));
-            } else if (!Modifier.isTransient(f.getModifiers())) {
+            } else if (!isTransient(f)) {
                 JoinTo joinTo = f.getAnnotation(JoinTo.class);
                 if (joinTo == null) {
                     throw new BabyDBException("You must specify the column to join to using the JoinTo annotation, " +
@@ -468,6 +468,10 @@ public abstract class CoreRepo<T> {
             }
         }
         return values;
+    }
+
+    private boolean isTransient(Field f){
+        return Modifier.isTransient(f.getModifiers()) || f.getAnnotation(BabyIgnore.class) != null;
     }
 
     /**
